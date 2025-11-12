@@ -1,10 +1,10 @@
 public interface IRepository {
-    public void createArtist(Artist artist);
+    public int createArtist(Artist artist);
     //Other CRUD for Artist
 
-    public void createAlbum(Album album);
+    public int createAlbum(Album album);
     //Other CRUD for Album
 
-    public void createSong(Song song);
+    public int createSong(Song song); //returns id of inserted song
     //Other CRUD for Song
 }

@@ -2,12 +2,12 @@ import java.util.List;
 
 public class MusicSearch {
 
-    private final IRepository repo;
+    //private final IRepository repo;
     private final ISongSearcher searcher;
     private final IEmbedder embedder;
 
-    public MusicSearch(IRepository repo, ISongSearcher searcher, IEmbedder embedder) {
-        this.repo = repo;
+    public MusicSearch(ISongSearcher searcher, IEmbedder embedder) {
+        //this.repo = repo;
         this.searcher = searcher;
         this.embedder = embedder;
     }

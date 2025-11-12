@@ -6,35 +6,36 @@ public class PostgreSQLRepository implements IRepository, ISongSearcher {
     private String POSTGRE_URL = "";
     private String POSTGRE_USER = "";
     private String POSTGRE_PW = "";
+    private IEmbedder embedder;
 
-    public PostgreSQLRepository() {
-        this.constructor_helper();
+    public PostgreSQLRepository(IEmbedder embedder) {
+        this.constructor_helper(embedder);
     }
 
-    public PostgreSQLRepository(String url, String user, String password) {
+    public PostgreSQLRepository(IEmbedder embedder, String url, String user, String password) {
         this.POSTGRE_URL = url;
         this.POSTGRE_USER = user;
         this.POSTGRE_PW = password;
-        this.constructor_helper();
+        this.constructor_helper(embedder);
     }
 
-    private void constructor_helper() {
+    private void constructor_helper(IEmbedder embedder) {
         // do stuff
     }
 
     @Override
-    public void createArtist(Artist artist) {
-
+    public int createArtist(Artist artist) {
+        return 0;
     }
 
     @Override
-    public void createAlbum(Album album) {
-
+    public int createAlbum(Album album) {
+        return 0;
     }
 
     @Override
-    public void createSong(Song song) {
-
+    public int createSong(Song song) {
+        return 0;
     }
 
     //Plan on storing the vectors inside postgre, so to search we should implement songsearcher.
