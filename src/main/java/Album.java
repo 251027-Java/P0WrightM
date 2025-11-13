@@ -2,12 +2,12 @@ public class Album {
 
     //private final int album_id;
     //private final int artist_id;
-    private final String artist;
+    private final String[] artists;
     private final String title;
     private final int release_year;
 
-    public Album(String artist, String title, int release_year) {
-        this.artist = artist;
+    public Album(String[] artists, String title, int release_year) {
+        this.artists = artists;
         this.title = title;
         this.release_year = release_year;
     }
@@ -20,7 +20,7 @@ public class Album {
 //        return this.artist_id;
 //    }
 
-    public String getArtist() { return this.artist; }
+    public String[] getArtists() { return this.artists; }
 
     public String getTitle() {
         return this.title;

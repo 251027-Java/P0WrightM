@@ -22,23 +22,27 @@ public class MusicApp {
         System.out.println(song);
     }
 
-    private Artist insertArtistRepo() {
-        String name;
+    private Artist[] insertArtistRepo() {
+        String[] names;
         do {
             //Get song artist name
-            System.out.print("Artist Name: ");
-            name = scan.nextLine();
+            System.out.print("Artists (Separate by '#'): ");
+            names = scan.nextLine().split("#");
             // validate input
             break;
         } while (true);
 
-        Artist artist = new Artist(name);
-        repo.createArtist(artist);
+        Artist[] artists = new Artist[names.length];
+        for (int i = 0; i < names.length; i++) {
+            Artist artist = new Artist(names[i]);
+            repo.createArtist(artist);
+            artists[i] = artist;
+        }
 
-        return artist;
+        return artists;
     }
 
-    private Album insertAlbumRepo(String artist) {
+    private Album insertAlbumRepo(String[] artists) {
         String name;
         int release_year;
 
@@ -63,7 +67,7 @@ public class MusicApp {
             break;
         } while (true);
 
-        Album album = new Album(artist, name, release_year);
+        Album album = new Album(artists, name, release_year);
         repo.createAlbum(album);
 
         return album;

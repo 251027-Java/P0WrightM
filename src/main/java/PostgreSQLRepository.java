@@ -29,40 +29,43 @@ public class PostgreSQLRepository implements IRepository, ISongSearcher {
 
             try ( Statement stmt = connection.createStatement() ) {
                 String sql =
-                        "CREATE EXTENSION IF NOT EXISTS vector; " + "CREATE SCHEMA IF NOT EXISTS Music;" +
-                                "CREATE SEQUENCE IF NOT EXISTS \"artist_artist_id_seq\"" +
+                        "CREATE EXTENSION IF NOT EXISTS vector;" +
+                                "CREATE SCHEMA IF NOT EXISTS Music;" +
+                                "CREATE SEQUENCE IF NOT EXISTS \"artist_artist_id_seq\" " +
                                 " INCREMENT 1 MINVALUE 1 MAXVALUE 2147483647 CACHE 1;" +
-                                "CREATE SEQUENCE IF NOT EXISTS \"album_album_id_seq\"" +
+                                "CREATE SEQUENCE IF NOT EXISTS \"album_album_id_seq\" " +
                                 " INCREMENT 1 MINVALUE 1 MAXVALUE 2147483647 CACHE 1;" +
-                                "CREATE SEQUENCE IF NOT EXISTS \"song_song_id_seq\"" +
+                                "CREATE SEQUENCE IF NOT EXISTS \"song_song_id_seq\" " +
                                 " INCREMENT 1 MINVALUE 1 MAXVALUE 2147483647 CACHE 1;" +
-                                "CREATE TABLE IF NOT EXISTS Music.Artist ( " +
-                                "artist_id int DEFAULT nextval('artist_artist_id_seq'::regclass) NOT NULL, " +
-                                "name VARCHAR(120) UNIQUE, " +
-                                "CONSTRAINT pk_artist PRIMARY KEY (artist_id));" +
-                                "CREATE TABLE IF NOT EXISTS Music.Album ( " +
-                                "album_id int DEFAULT nextval('album_album_id_seq'::regclass) NOT NULL, " +
-                                "title VARCHAR(120), " +
-                                "artist_id int, " +
-                                "release_year int, " +
-                                "CONSTRAINT pk_album PRIMARY KEY (album_id), " +
-                                "CONSTRAINT fk_album_artist_id FOREIGN KEY (artist_id) " +
-                                "  REFERENCES Music.Artist (artist_id) ON DELETE NO ACTION ON UPDATE NO ACTION, " +
-                                "CONSTRAINT unique_album_per_album_artist_year UNIQUE (title, artist_id, release_year));" +
-                                "CREATE TABLE IF NOT EXISTS Music.Song ( " +
-                                "song_id int DEFAULT nextval('song_song_id_seq'::regclass) NOT NULL, " +
-                                "title VARCHAR(120), " +
-                                "artist_id int, " +
-                                "album_id int, " +
-                                "duration decimal NOT NULL, " +
-                                "lyrics TEXT, " +
-                                "embedding vector(100)," +
-                                "CONSTRAINT pk_song PRIMARY KEY (song_id), " +
-                                "CONSTRAINT fk_song_artist_id FOREIGN KEY (artist_id) " +
-                                "  REFERENCES Music.Artist (artist_id) ON DELETE NO ACTION ON UPDATE NO ACTION, " +
-                                "CONSTRAINT fk_song_album_id FOREIGN KEY (album_id) " +
-                                "  REFERENCES Music.Album (album_id) ON DELETE NO ACTION ON UPDATE NO ACTION, " +
-                                "CONSTRAINT unique_song_per_album_artist UNIQUE (title, artist_id, album_id));";
+                                "CREATE TABLE IF NOT EXISTS Music.Artist (  " +
+                                "    artist_id int DEFAULT nextval('artist_artist_id_seq'::regclass) NOT NULL," +
+                                "    name VARCHAR(120) UNIQUE," +
+                                "    CONSTRAINT pk_artist PRIMARY KEY (artist_id));" +
+                                "CREATE TABLE IF NOT EXISTS Music.Album (  " +
+                                "    album_id int DEFAULT nextval('album_album_id_seq'::regclass) NOT NULL," +
+                                "    title VARCHAR(120)," +
+                                "    release_year int," +
+                                "    CONSTRAINT pk_album PRIMARY KEY (album_id)," +
+                                "    CONSTRAINT unique_album_per_album_artist_year UNIQUE (title, release_year));" +
+                                "CREATE TABLE IF NOT EXISTS Music.Artist_Album (" +
+                                "    artist_id int," +
+                                "    album_id int," +
+                                "    CONSTRAINT pk_artist_album PRIMARY KEY (artist_id, album_id)," +
+                                "    CONSTRAINT fk_artist_album_artist_id FOREIGN KEY (artist_id)" +
+                                "        REFERENCES Music.Artist (artist_id) ON DELETE NO ACTION ON UPDATE NO ACTION," +
+                                "    CONSTRAINT fk_artist_album_album_id FOREIGN KEY (album_id)" +
+                                "        REFERENCES Music.Album (album_id) ON DELETE NO ACTION ON UPDATE NO ACTION);" +
+                                "CREATE TABLE IF NOT EXISTS Music.Song (  " +
+                                "    song_id int DEFAULT nextval('song_song_id_seq'::regclass) NOT NULL," +
+                                "    title VARCHAR(120)," +
+                                "    album_id int," +
+                                "    duration decimal NOT NULL," +
+                                "    lyrics TEXT," +
+                                "    embedding vector(100)," +
+                                "    CONSTRAINT pk_song PRIMARY KEY (song_id)," +
+                                "    CONSTRAINT fk_song_album_id FOREIGN KEY (album_id)" +
+                                "        REFERENCES Music.Album (album_id) ON DELETE NO ACTION ON UPDATE NO ACTION," +
+                                "    CONSTRAINT unique_song_per_album UNIQUE (title, album_id));";
                 stmt.execute(sql);
                 System.out.println("Successful connection to PostgreSQL Database");
             }
@@ -108,18 +111,27 @@ public class PostgreSQLRepository implements IRepository, ISongSearcher {
     public void createAlbum(Album album) {
         String title = album.getTitle();
 
-        int artist_id = this.getArtistId(album.getArtist());
+        String[] artists = album.getArtists();
+
+        //int artist_id = this.getArtistId(album.getArtist());
 
         int release_year = album.getReleaseYear();
 
         String sql =
-                "INSERT INTO Music.Album (title, artist_id, release_year)" +
-                        "VALUES (?, ?, ?)" +
-                        "ON CONFLICT (title, artist_id, release_year) DO NOTHING;";
+                "WITH returned_album_id AS ( " +
+                        "INSERT INTO Music.Album (title, release_year) " +
+                        "VALUES (?, ?)" +
+                        "ON CONFLICT (title, release_year) DO NOTHING " +
+                        "RETURNING album_id) " +
+                        "INSERT INTO Music.Artist_Album (artist_id, album_id) " +
+                        "SELECT ?, returned_album_id.album_id " +
+                        "FROM returned_album_id " +
+                        "ON CONFLICT (artist_id, album_id) DO NOTHING; ";
         try ( PreparedStatement stmt = connection.prepareStatement(sql) ) {
             stmt.setString(1, title);
-            stmt.setInt(2, artist_id);
-            stmt.setInt(3, release_year);
+            //stmt.setInt(2, artist_id);
+            stmt.setInt(2, release_year);
+            stmt.setInt(3, artist_id);
             stmt.executeUpdate();
         } catch (SQLException e) {
             e.printStackTrace();
@@ -145,7 +157,7 @@ public class PostgreSQLRepository implements IRepository, ISongSearcher {
 
     @Override
     public void createSong(Song song) {
-        int artist_id = this.getArtistId(song.getArtist());
+        //int artist_id = this.getArtistId(song.getArtist());
         int album_id = this.getAlbumId(song.getAlbum());
         String lyrics = song.getLyrics();
         double duration = song.getLength();
@@ -154,16 +166,16 @@ public class PostgreSQLRepository implements IRepository, ISongSearcher {
         double[] embedding = this.embedder.getEmbedding(lyrics);
 
         String sql =
-                "INSERT INTO Music.Song (title, artist_id, album_id, duration, lyrics, embedding)" +
-                        "VALUES (?, ?, ?, ?, ?, ?)" +
-                        "ON CONFLICT (title, artist_id, album_id) DO NOTHING;";
+                "INSERT INTO Music.Song (title, album_id, duration, lyrics, embedding)" +
+                        "VALUES (?, ?, ?, ?, ?)" +
+                        "ON CONFLICT (title, album_id) DO NOTHING;";
         try ( PreparedStatement stmt = connection.prepareStatement(sql) ) {
             stmt.setString(1, title);
-            stmt.setInt(2, artist_id);
-            stmt.setInt(3, album_id);
-            stmt.setDouble(4, duration);
-            stmt.setString(5, lyrics);
-            stmt.setObject(6, embedding);
+            //stmt.setInt(2, artist_id);
+            stmt.setInt(2, album_id);
+            stmt.setDouble(3, duration);
+            stmt.setString(4, lyrics);
+            stmt.setObject(5, embedding);
             stmt.executeUpdate();
         } catch (SQLException e) {
             e.printStackTrace();
