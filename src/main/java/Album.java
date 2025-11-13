@@ -20,7 +20,13 @@ public class Album {
 //        return this.artist_id;
 //    }
 
+    public String getArtist() { return this.artist; }
+
     public String getTitle() {
         return this.title;
+    }
+
+    public int getReleaseYear() {
+        return this.release_year;
     }
 }

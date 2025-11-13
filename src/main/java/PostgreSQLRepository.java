@@ -1,5 +1,6 @@
 import java.sql.*;
 import java.util.List;
+import java.util.Map;
 
 //Want to use pgvector to contain lyric vectors inside postgresql database
 public class PostgreSQLRepository implements IRepository, ISongSearcher {
@@ -22,6 +23,7 @@ public class PostgreSQLRepository implements IRepository, ISongSearcher {
     }
 
     private void constructor_helper(IEmbedder embedder) {
+        this.embedder = embedder;
         try{
             this.connection = DriverManager.getConnection(POSTGRE_URL, POSTGRE_USER, POSTGRE_PW);
 
@@ -36,7 +38,7 @@ public class PostgreSQLRepository implements IRepository, ISongSearcher {
                                 " INCREMENT 1 MINVALUE 1 MAXVALUE 2147483647 CACHE 1;" +
                                 "CREATE TABLE IF NOT EXISTS Music.Artist ( " +
                                 "artist_id int DEFAULT nextval('artist_artist_id_seq'::regclass) NOT NULL, " +
-                                "name VARCHAR(120), " +
+                                "name VARCHAR(120) UNIQUE, " +
                                 "CONSTRAINT pk_artist PRIMARY KEY (artist_id));" +
                                 "CREATE TABLE IF NOT EXISTS Music.Album ( " +
                                 "album_id int DEFAULT nextval('album_album_id_seq'::regclass) NOT NULL, " +
@@ -45,7 +47,8 @@ public class PostgreSQLRepository implements IRepository, ISongSearcher {
                                 "release_year int, " +
                                 "CONSTRAINT pk_album PRIMARY KEY (album_id), " +
                                 "CONSTRAINT fk_album_artist_id FOREIGN KEY (artist_id) " +
-                                "  REFERENCES Music.Artist (artist_id) ON DELETE NO ACTION ON UPDATE NO ACTION);" +
+                                "  REFERENCES Music.Artist (artist_id) ON DELETE NO ACTION ON UPDATE NO ACTION, " +
+                                "CONSTRAINT unique_album_per_album_artist_year UNIQUE (title, artist_id, release_year));" +
                                 "CREATE TABLE IF NOT EXISTS Music.Song ( " +
                                 "song_id int DEFAULT nextval('song_song_id_seq'::regclass) NOT NULL, " +
                                 "title VARCHAR(120), " +
@@ -70,7 +73,18 @@ public class PostgreSQLRepository implements IRepository, ISongSearcher {
 
     @Override
     public void createArtist(Artist artist) {
-        return;
+        String name = artist.getName();
+
+        String sql =
+                "INSERT INTO Music.Artist (name)" +
+                        "VALUES (?)" +
+                        "ON CONFLICT (name) DO NOTHING;";
+        try ( PreparedStatement stmt = connection.prepareStatement(sql) ) {
+            stmt.setString(1, name);
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
     }
 
     private int getArtistId(String name) {
@@ -92,7 +106,24 @@ public class PostgreSQLRepository implements IRepository, ISongSearcher {
 
     @Override
     public void createAlbum(Album album) {
-        return;
+        String title = album.getTitle();
+
+        int artist_id = this.getArtistId(album.getArtist());
+
+        int release_year = album.getReleaseYear();
+
+        String sql =
+                "INSERT INTO Music.Album (title, artist_id, release_year)" +
+                        "VALUES (?, ?, ?)" +
+                        "ON CONFLICT (title, artist_id, release_year) DO NOTHING;";
+        try ( PreparedStatement stmt = connection.prepareStatement(sql) ) {
+            stmt.setString(1, title);
+            stmt.setInt(2, artist_id);
+            stmt.setInt(3, release_year);
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
     }
 
     private int getAlbumId(String title) {
@@ -137,9 +168,6 @@ public class PostgreSQLRepository implements IRepository, ISongSearcher {
         } catch (SQLException e) {
             e.printStackTrace();
         }
-
-
-        return;
     }
 
     private int getSongId(String title) {
@@ -161,7 +189,7 @@ public class PostgreSQLRepository implements IRepository, ISongSearcher {
 
     //Plan on storing the vectors inside postgre, so to search we should implement songsearcher.
     @Override
-    public List<Song> getSimilarSongs(List<Double> embedding) {
+    public List<Song> getSimilarSongs(double[] embedding) {
         return List.of();
     }
 }
