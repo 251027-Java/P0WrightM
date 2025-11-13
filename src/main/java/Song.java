@@ -47,6 +47,10 @@ public class Song {
         return this.length;
     }
 
+    public String getLyrics() {
+        return this.lyrics;
+    }
+
     @Override
     public String toString() {
         return String.format("Song: \"%s\", Artist: %s, Album: %s, Duration: %.2f",

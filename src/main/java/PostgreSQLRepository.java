@@ -51,14 +51,15 @@ public class PostgreSQLRepository implements IRepository, ISongSearcher {
                                 "title VARCHAR(120), " +
                                 "artist_id int, " +
                                 "album_id int, " +
-                                "duration int NOT NULL, " +
+                                "duration decimal NOT NULL, " +
                                 "lyrics TEXT, " +
                                 "embedding vector(100)," +
                                 "CONSTRAINT pk_song PRIMARY KEY (song_id), " +
                                 "CONSTRAINT fk_song_artist_id FOREIGN KEY (artist_id) " +
                                 "  REFERENCES Music.Artist (artist_id) ON DELETE NO ACTION ON UPDATE NO ACTION, " +
                                 "CONSTRAINT fk_song_album_id FOREIGN KEY (album_id) " +
-                                "  REFERENCES Music.Album (album_id) ON DELETE NO ACTION ON UPDATE NO ACTION);";
+                                "  REFERENCES Music.Album (album_id) ON DELETE NO ACTION ON UPDATE NO ACTION, " +
+                                "CONSTRAINT unique_song_per_album_artist UNIQUE (title, artist_id, album_id));";
                 stmt.execute(sql);
                 System.out.println("Successful connection to PostgreSQL Database");
             }
@@ -68,13 +69,13 @@ public class PostgreSQLRepository implements IRepository, ISongSearcher {
     }
 
     @Override
-    public int createArtist(Artist artist) {
-        return 0;
+    public void createArtist(Artist artist) {
+        return;
     }
 
     private int getArtistId(String name) {
         String sql =
-                "SELECT artist_id FROM Music.Artist WHERE name like \"%?%\";";
+                "SELECT artist_id FROM Music.Artist WHERE name = ?;";
         try ( PreparedStatement stmt = connection.prepareStatement(sql) ) {
             stmt.setString(1, name);
             ResultSet rs = stmt.executeQuery();
@@ -90,13 +91,13 @@ public class PostgreSQLRepository implements IRepository, ISongSearcher {
     }
 
     @Override
-    public int createAlbum(Album album) {
-        return 0;
+    public void createAlbum(Album album) {
+        return;
     }
 
     private int getAlbumId(String title) {
         String sql =
-                "SELECT album_id FROM Music.Album WHERE title like \"%?%\";";
+                "SELECT album_id FROM Music.Album WHERE title = ?;";
         try ( PreparedStatement stmt = connection.prepareStatement(sql) ) {
             stmt.setString(1, title);
             ResultSet rs = stmt.executeQuery();
@@ -112,8 +113,50 @@ public class PostgreSQLRepository implements IRepository, ISongSearcher {
     }
 
     @Override
-    public int createSong(Song song) {
-        return 0;
+    public void createSong(Song song) {
+        int artist_id = this.getArtistId(song.getArtist());
+        int album_id = this.getAlbumId(song.getAlbum());
+        String lyrics = song.getLyrics();
+        double duration = song.getLength();
+        String title = song.getTitle();
+
+        double[] embedding = this.embedder.getEmbedding(lyrics);
+
+        String sql =
+                "INSERT INTO Music.Song (title, artist_id, album_id, duration, lyrics, embedding)" +
+                        "VALUES (?, ?, ?, ?, ?, ?)" +
+                        "ON CONFLICT (title, artist_id, album_id) DO NOTHING;";
+        try ( PreparedStatement stmt = connection.prepareStatement(sql) ) {
+            stmt.setString(1, title);
+            stmt.setInt(2, artist_id);
+            stmt.setInt(3, album_id);
+            stmt.setDouble(4, duration);
+            stmt.setString(5, lyrics);
+            stmt.setObject(6, embedding);
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+
+        return;
+    }
+
+    private int getSongId(String title) {
+        String sql =
+                "SELECT song_id FROM Music.Song WHERE title = ?;";
+        try ( PreparedStatement stmt = connection.prepareStatement(sql) ) {
+            stmt.setString(1, title);
+            ResultSet rs = stmt.executeQuery();
+            int id = -1;
+            while (rs.next()) {
+                id = rs.getInt("album_id"); // By column name
+            }
+            return id;
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return -1;
     }
 
     //Plan on storing the vectors inside postgre, so to search we should implement songsearcher.

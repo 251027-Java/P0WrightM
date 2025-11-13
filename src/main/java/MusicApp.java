@@ -33,7 +33,7 @@ public class MusicApp {
         } while (true);
 
         Artist artist = new Artist(name);
-        int id = repo.createArtist(artist);
+        repo.createArtist(artist);
 
         return artist;
     }
@@ -64,7 +64,7 @@ public class MusicApp {
         } while (true);
 
         Album album = new Album(artist, name, release_year);
-        int id = repo.createAlbum(album);
+        repo.createAlbum(album);
 
         return album;
     }
@@ -110,7 +110,7 @@ public class MusicApp {
         } while (true);
 
         Song song = new Song(artist, album, title, secs, lyrics);
-        int id = repo.createSong(song);
+        repo.createSong(song);
 
         return song;
     }
