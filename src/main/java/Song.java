@@ -1,8 +1,10 @@
+import java.util.Arrays;
+
 public class Song {
 
     //private final int song_id;
     //private final int artist_id;
-    private final String artist;
+    private final String[] artists;
     //private final int album_id;
     private final String album;
     private final String title;
@@ -10,9 +12,9 @@ public class Song {
     private final String lyrics;
     //Not sure if want to include embedding here?
 
-    public Song(String artist, String album, String title, double length, String lyrics) {
+    public Song(String[] artists, String album, String title, double length, String lyrics) {
         //this.song_id = song_id;
-        this.artist = artist;
+        this.artists = artists;
         this.album = album;
         this.title = title;
         this.length = length;
@@ -32,8 +34,8 @@ public class Song {
 //        return this.album_id;
 //    }
 
-    public String getArtist() {
-        return this.artist;
+    public String[] getArtists() {
+        return this.artists;
     }
 
     public String getAlbum() {
@@ -55,6 +57,6 @@ public class Song {
     @Override
     public String toString() {
         return String.format("Song: \"%s\", Artist: %s, Album: %s, Duration: %.2f",
-                this.title, this.artist, this.album, this.length);
+                this.title, Arrays.toString(this.artists), this.album, this.length);
     }
 }

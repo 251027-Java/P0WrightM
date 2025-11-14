@@ -34,7 +34,7 @@ public class MusicApp {
 
         Artist[] artists = new Artist[names.length];
         for (int i = 0; i < names.length; i++) {
-            Artist artist = new Artist(names[i]);
+            Artist artist = new Artist(names[i].strip());
             repo.createArtist(artist);
             artists[i] = artist;
         }
@@ -42,14 +42,16 @@ public class MusicApp {
         return artists;
     }
 
-    private Album insertAlbumRepo(String[] artists) {
+    private Album insertAlbumRepo() {
         String name;
         int release_year;
+
+        Artist[] artists = this.insertArtistRepo();
 
         do {
             //Get album name
             System.out.print("Album Name: ");
-            name = scan.nextLine();
+            name = scan.nextLine().strip();
             // validate input
             break;
         } while (true);
@@ -59,7 +61,7 @@ public class MusicApp {
             System.out.print("Release year: ");
             String input = scan.nextLine();
             try {
-                release_year = Integer.parseInt(input);
+                release_year = Integer.parseInt(input.strip());
             } catch (NumberFormatException e) {
                 // validate input
                 continue;
@@ -67,7 +69,12 @@ public class MusicApp {
             break;
         } while (true);
 
-        Album album = new Album(artists, name, release_year);
+        String[] artist_names = new String[artists.length];
+        for (int i = 0; i < artists.length; i++) {
+            artist_names[i] = artists[i].getName();
+        }
+
+        Album album = new Album(artist_names, name, release_year);
         repo.createAlbum(album);
 
         return album;
@@ -75,8 +82,7 @@ public class MusicApp {
 
     private Song insertSongRepo() {
         String title;
-        String artist;
-        String album;
+        Album album;
         double secs = 0;
         String lyrics;
 
@@ -88,16 +94,17 @@ public class MusicApp {
             break;
         } while (true);
 
-        artist = insertArtistRepo().getName();
+        //artists = insertArtistRepo();
 
-        album = insertAlbumRepo(artist).getTitle();
+        album = insertAlbumRepo();
+        String album_title = album.getTitle();
 
         do {
             //Get song duration
             System.out.print("Song Length (in seconds): ");
             String input = scan.nextLine();
             try {
-                secs = Double.parseDouble(input);
+                secs = Double.parseDouble(input.strip());
             } catch (NumberFormatException e) {
                 // validate input
                 continue;
@@ -113,7 +120,9 @@ public class MusicApp {
             break;
         } while (true);
 
-        Song song = new Song(artist, album, title, secs, lyrics);
+        String[] artist_names = album.getArtists();
+
+        Song song = new Song(artist_names, album_title, title.strip(), secs, lyrics.strip());
         repo.createSong(song);
 
         return song;

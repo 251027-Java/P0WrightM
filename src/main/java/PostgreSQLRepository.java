@@ -1,6 +1,5 @@
 import java.sql.*;
 import java.util.List;
-import java.util.Map;
 
 //Want to use pgvector to contain lyric vectors inside postgresql database
 public class PostgreSQLRepository implements IRepository, ISongSearcher {
@@ -46,7 +45,7 @@ public class PostgreSQLRepository implements IRepository, ISongSearcher {
                                 "    title VARCHAR(120)," +
                                 "    release_year int," +
                                 "    CONSTRAINT pk_album PRIMARY KEY (album_id)," +
-                                "    CONSTRAINT unique_album_per_album_artist_year UNIQUE (title, release_year));" +
+                                "    CONSTRAINT unique_album_per_album_release_year UNIQUE (title, release_year));" +
                                 "CREATE TABLE IF NOT EXISTS Music.Artist_Album (" +
                                 "    artist_id int," +
                                 "    album_id int," +
@@ -109,36 +108,59 @@ public class PostgreSQLRepository implements IRepository, ISongSearcher {
 
     @Override
     public void createAlbum(Album album) {
+        // Database ignore case sensitivity for now.
         String title = album.getTitle();
+        int release_year = album.getReleaseYear();
+
+        /*
+        The Album Table has a constraint that album title and year must be unique!
+        So, the problem of same name albums made in the same year with different artists
+        just can't happen. We can't have more than one album title in a single year.
+         */
 
         String[] artists = album.getArtists();
 
-        //int artist_id = this.getArtistId(album.getArtist());
+        int[] artist_ids = new int[artists.length];
+        for (int i = 0; i < artists.length; i++) {
+            artist_ids[i] = this.getArtistId(artists[i]);
+        }
 
-        int release_year = album.getReleaseYear();
-
-        String sql =
-                "WITH returned_album_id AS ( " +
-                        "INSERT INTO Music.Album (title, release_year) " +
-                        "VALUES (?, ?)" +
-                        "ON CONFLICT (title, release_year) DO NOTHING " +
-                        "RETURNING album_id) " +
-                        "INSERT INTO Music.Artist_Album (artist_id, album_id) " +
-                        "SELECT ?, returned_album_id.album_id " +
-                        "FROM returned_album_id " +
-                        "ON CONFLICT (artist_id, album_id) DO NOTHING; ";
+        String sql = "INSERT INTO Music.Album (title, release_year) " +
+                        "VALUES (?, ?) " +
+                        "RETURNING album_id; " ;
+        ResultSet rs = null;
         try ( PreparedStatement stmt = connection.prepareStatement(sql) ) {
             stmt.setString(1, title);
-            //stmt.setInt(2, artist_id);
             stmt.setInt(2, release_year);
-            stmt.setInt(3, artist_id);
-            stmt.executeUpdate();
+            rs = stmt.executeQuery();
+            System.out.println("Added new album");
+            //stmt.executeUpdate();
+            sql = "INSERT INTO Music.Artist_Album (artist_id, album_id) " +
+                    "VALUES (?, ?) " +
+                    "ON CONFLICT (artist_id, album_id) DO NOTHING;";
+            try ( PreparedStatement artist_album_stmt = connection.prepareStatement(sql) ) {
+                int album_id = -1;
+                while (rs.next()) {
+                    album_id = rs.getInt("album_id"); // By column name
+                }
+                for (int artist_id : artist_ids) {
+                    artist_album_stmt.setInt(1, artist_id);
+                    artist_album_stmt.setInt(2, album_id);
+                    artist_album_stmt.executeUpdate();
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.out.println("Album already exists");
+            return;
         }
+        //System.out.println(rs);
+
     }
 
     private int getAlbumId(String title) {
+        //TODO: Need to handle where multiple albums have same title.
         String sql =
                 "SELECT album_id FROM Music.Album WHERE title = ?;";
         try ( PreparedStatement stmt = connection.prepareStatement(sql) ) {
@@ -171,7 +193,6 @@ public class PostgreSQLRepository implements IRepository, ISongSearcher {
                         "ON CONFLICT (title, album_id) DO NOTHING;";
         try ( PreparedStatement stmt = connection.prepareStatement(sql) ) {
             stmt.setString(1, title);
-            //stmt.setInt(2, artist_id);
             stmt.setInt(2, album_id);
             stmt.setDouble(3, duration);
             stmt.setString(4, lyrics);
@@ -201,7 +222,7 @@ public class PostgreSQLRepository implements IRepository, ISongSearcher {
 
     //Plan on storing the vectors inside postgre, so to search we should implement songsearcher.
     @Override
-    public List<Song> getSimilarSongs(double[] embedding) {
+    public List<Song> getSimilarSongs(double[] embedding, int limit) {
         return List.of();
     }
 }

@@ -25,7 +25,7 @@ public class MusicSearch {
     private List<Song> search(String text) {
         double[] embedding = this.embedder.getEmbedding(text);
 
-        List<Song> similarSongs = this.searcher.getSimilarSongs(embedding);
+        List<Song> similarSongs = this.searcher.getSimilarSongs(embedding, 5);
 
         return similarSongs;
     }
