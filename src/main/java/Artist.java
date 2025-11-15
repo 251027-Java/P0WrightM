@@ -18,4 +18,8 @@ public class Artist {
     public String getName() {
         return this.name;
     }
+
+    public String toString() {
+        return "Artist: {" + this.getName() + "}";
+    }
 }

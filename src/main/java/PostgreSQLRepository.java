@@ -1,5 +1,7 @@
 import java.sql.*;
+import java.util.ArrayList;
 import java.util.List;
+import com.pgvector.PGvector;
 
 //Want to use pgvector to contain lyric vectors inside postgresql database
 public class PostgreSQLRepository implements IRepository, ISongSearcher {
@@ -185,7 +187,7 @@ public class PostgreSQLRepository implements IRepository, ISongSearcher {
         double duration = song.getLength();
         String title = song.getTitle();
 
-        double[] embedding = this.embedder.getEmbedding(lyrics);
+        float[] embedding = this.embedder.getEmbedding(lyrics);
 
         String sql =
                 "INSERT INTO Music.Song (title, album_id, duration, lyrics, embedding)" +
@@ -196,7 +198,7 @@ public class PostgreSQLRepository implements IRepository, ISongSearcher {
             stmt.setInt(2, album_id);
             stmt.setDouble(3, duration);
             stmt.setString(4, lyrics);
-            stmt.setObject(5, embedding);
+            stmt.setObject(5, new PGvector(embedding));
             stmt.executeUpdate();
         } catch (SQLException e) {
             e.printStackTrace();
@@ -222,7 +224,37 @@ public class PostgreSQLRepository implements IRepository, ISongSearcher {
 
     //Plan on storing the vectors inside postgre, so to search we should implement songsearcher.
     @Override
-    public List<Song> getSimilarSongs(double[] embedding, int limit) {
-        return List.of();
+    public List<Song> getSimilarSongs(float[] embedding, int limit) {
+        List<Song> similarSongs = new ArrayList<>();
+        String sql =
+                "SELECT Song.title as song_title, Album.title as album_title, " +
+                        "ARRAY_AGG(Artist.name ORDER BY Artist.name) AS artists, " +
+                        "Song.duration as duration, Song.lyrics as lyrics " +
+                        "FROM Music.Song " +
+                        "JOIN Music.Album ON Album.album_id = Song.album_id " +
+                        "JOIN Music.Artist_Album ON Artist_Album.album_id = Album.album_id " +
+                        "JOIN Music.Artist ON Artist.artist_id = Artist_Album.artist_id " +
+                        "GROUP BY Song.song_id, Song.title, Album.title " +
+                        "ORDER BY embedding <=> ? " +
+                        "LIMIT ?;";
+        try ( PreparedStatement stmt = connection.prepareStatement(sql) ) {
+            stmt.setObject(1, new PGvector(embedding));
+            stmt.setInt(2, limit);
+            ResultSet rs = stmt.executeQuery();
+            //int id = -1;
+            while (rs.next()) {
+                String songTitle = rs.getString("song_title");
+                String albumTitle = rs.getString("album_title");
+                String[] artists = (String[]) rs.getArray("artists").getArray();
+                int duration = rs.getInt("duration");
+                String lyrics = rs.getString("lyrics");
+                similarSongs.add(new Song(artists, albumTitle, songTitle, duration, lyrics));
+            }
+            return similarSongs;
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        return null;
     }
 }

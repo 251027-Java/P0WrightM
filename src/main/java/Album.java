@@ -29,4 +29,8 @@ public class Album {
     public int getReleaseYear() {
         return this.release_year;
     }
+
+    public String toString() {
+        return "Album: " + this.getTitle() + " (" + this.getReleaseYear() + ")";
+    }
 }

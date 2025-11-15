@@ -1,3 +1,4 @@
+import java.util.Arrays;
 import java.util.Scanner;
 
 public class MusicApp {
@@ -12,15 +13,62 @@ public class MusicApp {
         this.repo = repo;
         this.searcher = searcher;
         this.embedder = embedder;
-        this.musicSearch = new MusicSearch(this.searcher, this.embedder);
         this.scan = new Scanner(System.in);
+        this.musicSearch = new MusicSearch(this.searcher, this.embedder, this.scan);
     }
 
     public void start() {
         // Do stuff
-        Song song = insertSongRepo();
-        System.out.println(song);
+
+        System.out.println("Welcome to Music App!\n");
+        System.out.println("Please select one of the options from the menu below to begin\n");
+
+        boolean hasNotQuit = true;
+        String input;
+        do {
+            System.out.println("Options are:\n");
+            System.out.println("\t1: Add Artist");
+            System.out.println("\t2: Add Album");
+            System.out.println("\t3: Add Song");
+            System.out.println("\t4: Get Artist Information");
+            System.out.println("\t5: Get Album Information");
+            System.out.println("\t6: Get Song Information");
+            System.out.println("\t7: Search for Songs");
+            System.out.println("\t8: Quit");
+
+            System.out.print("\nSelection: ");
+            input = scan.nextLine().strip();
+
+            if (input.equals("1")) {
+                Artist[] artists = insertArtistRepo();
+                System.out.println(Arrays.toString(artists));
+            } else if (input.equals("2")) {
+                Album album = insertAlbumRepo();
+                System.out.println(album);
+            } else if (input.equals("3")) {
+                Song song = insertSongRepo();
+                System.out.println(song);
+            } else if (input.equals("4")) {
+                System.out.println("TBI");
+            } else if (input.equals("5")) {
+                System.out.println("TBI");
+            } else if (input.equals("6")) {
+                System.out.println("TBI");
+            } else if (input.equals("7")) {
+                musicSearch.start();
+            } else if (input.equals("8")) {
+                hasNotQuit = false;
+            } else {
+                System.out.println("Invalid Selection. Please try again");
+            }
+
+        } while (hasNotQuit);
+
+        System.out.println("Thanks for using MusicApp!");
+
     }
+
+
 
     private Artist[] insertArtistRepo() {
         String[] names;
