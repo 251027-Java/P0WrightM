@@ -2,6 +2,8 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 import com.pgvector.PGvector;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 //Want to use pgvector to contain lyric vectors inside postgresql database
 public class PostgreSQLRepository implements IRepository, ISongSearcher {
@@ -11,23 +13,31 @@ public class PostgreSQLRepository implements IRepository, ISongSearcher {
     private String POSTGRE_PW = "postgres";
     private IEmbedder embedder;
     private Connection connection;
+    private static final Logger log = LoggerFactory.getLogger(PostgreSQLRepository.class);
 
-    public PostgreSQLRepository(IEmbedder embedder) {
+    public PostgreSQLRepository(IEmbedder embedder) throws SQLException {
+        log.info("Initializing PostgreSQL Repository with default connection");
         this.constructor_helper(embedder);
+        log.info("Initialized Repository");
     }
 
-    public PostgreSQLRepository(IEmbedder embedder, String url, String user, String password) {
+    public PostgreSQLRepository(IEmbedder embedder, String url, String user, String password) throws SQLException {
+        log.info("Initializing PostgreSQL Repository with custom connection");
         this.POSTGRE_URL = url;
         this.POSTGRE_USER = user;
         this.POSTGRE_PW = password;
         this.constructor_helper(embedder);
+        log.info("Initialized Repository");
     }
 
-    private void constructor_helper(IEmbedder embedder) {
+    private void constructor_helper(IEmbedder embedder) throws SQLException {
         this.embedder = embedder;
         try{
+            log.info("Establishing Connection to PostgresSQL Database");
             this.connection = DriverManager.getConnection(POSTGRE_URL, POSTGRE_USER, POSTGRE_PW);
+            log.info("Established Connection");
 
+            log.info("Creating Database Structure");
             try ( Statement stmt = connection.createStatement() ) {
                 String sql =
                         "CREATE EXTENSION IF NOT EXISTS vector;" +
@@ -68,10 +78,12 @@ public class PostgreSQLRepository implements IRepository, ISongSearcher {
                                 "        REFERENCES Music.Album (album_id) ON DELETE NO ACTION ON UPDATE NO ACTION," +
                                 "    CONSTRAINT unique_song_per_album UNIQUE (title, album_id));";
                 stmt.execute(sql);
-                System.out.println("Successful connection to PostgreSQL Database");
+                log.info("Created Structure");
+                //System.out.println("Successful connection to PostgreSQL Database");
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            log.warn("Unable to Establish Connection and Create Structure. Exiting.");
+            throw e;
         }
     }
 
