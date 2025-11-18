@@ -15,11 +15,9 @@ public class MusicSearch {
         this.scan = scan;
     }
 
-    public void start() {
-        String userInput = getUserText();
-        List<Song> similarSongs = this.search(userInput);
-        this.displaySongs(similarSongs);
-    }
+//    public void start() {
+//
+//    }
 
     private String getUserText() {
         String input = "";
@@ -34,21 +32,41 @@ public class MusicSearch {
         return input;
     }
 
-    private void displaySongs(List<Song> songs) {
-        //displaySongs
-        System.out.println();
-        for (int i = 0; i < songs.size(); i++) {
-            System.out.print(String.format("\t%d: ", i));
-            System.out.println(songs.get(i));
-        }
-        System.out.println();
-    }
+    public List<Song> searchByLyrics() {
+        System.out.println("Search By Lyrics:\n");
+        String userInput = getUserText();
 
-    private List<Song> search(String text) {
-        float[] embedding = this.embedder.getEmbedding(text);
+        float[] embedding = this.embedder.getEmbedding(userInput);
 
-        List<Song> similarSongs = this.searcher.getSimilarSongs(embedding, 5);
+        List<Song> similarSongs = this.searcher.getSimilarSongsByLyrics(embedding, 5);
 
         return similarSongs;
+    }
+
+    public List<Song> searchByTitle() {
+        System.out.println("Search By Title:\n");
+        String userInput = getUserText();
+
+        List<Song> songs = this.searcher.getSongsByTitle(userInput, 5);
+
+        return songs;
+    }
+
+    public List<Song> searchByAlbum() {
+        System.out.println("Search By Album:\n");
+        String userInput = getUserText();
+
+        List<Song> songs = this.searcher.getSongsByAlbum(userInput, 5);
+
+        return songs;
+    }
+
+    public List<Song> searchByAuthor() {
+        System.out.println("Search By Author:\n");
+        String userInput = getUserText();
+
+        List<Song> songs = this.searcher.getSongsByAuthor(userInput, 5);
+
+        return songs;
     }
 }

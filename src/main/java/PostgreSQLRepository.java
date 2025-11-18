@@ -236,7 +236,7 @@ public class PostgreSQLRepository implements IRepository, ISongSearcher {
 
     //Plan on storing the vectors inside postgre, so to search we should implement songsearcher.
     @Override
-    public List<Song> getSimilarSongs(float[] embedding, int limit) {
+    public List<Song> getSimilarSongsByLyrics(float[] embedding, int limit) {
         List<Song> similarSongs = new ArrayList<>();
         String sql =
                 "SELECT Song.title as song_title, Album.title as album_title, " +
@@ -267,6 +267,51 @@ public class PostgreSQLRepository implements IRepository, ISongSearcher {
             e.printStackTrace();
         }
 
-        return null;
+        return List.of();
+    }
+
+    @Override
+    public List<Song> getSongsByTitle(String title, int limit) {
+        List<Song> songs = new ArrayList<>();
+        String sql =
+                "SELECT Song.title as song_title, Album.title as album_title, " +
+                        "ARRAY_AGG(Artist.name ORDER BY Artist.name) AS artists, " +
+                        "Song.duration as duration, Song.lyrics as lyrics " +
+                        "FROM Music.Song " +
+                        "JOIN Music.Album ON Album.album_id = Song.album_id " +
+                        "JOIN Music.Artist_Album ON Artist_Album.album_id = Album.album_id " +
+                        "JOIN Music.Artist ON Artist.artist_id = Artist_Album.artist_id " +
+                        "WHERE Song.title ILIKE ? " +
+                        "GROUP BY Song.song_id, Song.title, Album.title " +
+                        "LIMIT ?;";
+        try ( PreparedStatement stmt = connection.prepareStatement(sql) ) {
+            title = "%" + title + "%";
+            stmt.setString(1, title);
+            stmt.setInt(2, limit);
+            ResultSet rs = stmt.executeQuery();
+            //int id = -1;
+            while (rs.next()) {
+                String songTitle = rs.getString("song_title");
+                String albumTitle = rs.getString("album_title");
+                String[] artists = (String[]) rs.getArray("artists").getArray();
+                int duration = rs.getInt("duration");
+                String lyrics = rs.getString("lyrics");
+                songs.add(new Song(artists, albumTitle, songTitle, duration, lyrics));
+            }
+            return songs;
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return List.of();
+    }
+
+    @Override
+    public List<Song> getSongsByAuthor(String author, int limit) {
+        return List.of();
+    }
+
+    @Override
+    public List<Song> getSongsByAlbum(String album, int limit) {
+        return List.of();
     }
 }
