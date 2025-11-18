@@ -1,6 +1,7 @@
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Year;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Scanner;
@@ -101,13 +102,22 @@ public class MusicApp {
      */
     private Artist[] getAndInsertArtist() {
         String[] names;
+        boolean isInvalid = false;
         do {
             //Get song artist name
             System.out.print("Artists (Separate by '#'): ");
             names = scan.nextLine().split("#");
             // validate input
-            break;
-        } while (true);
+            for (String name : names) {
+                if (name.isBlank()) {
+                    System.out.println("Invalid artist name. Please try again.");
+                    isInvalid = true;
+                    break;
+                } else {
+                    isInvalid = false;
+                }
+            }
+        } while (isInvalid);
 
         return insertArtistRepo(names);
     }
@@ -145,8 +155,9 @@ public class MusicApp {
             //Get album name
             System.out.print("Album Name: ");
             name = scan.nextLine().strip();
-            // validate input
-            break;
+            if (name.isBlank()) {
+                System.out.println("Invalid Album Name. Please try again");
+            } else { break; }
         } while (true);
 
         do {
@@ -155,8 +166,12 @@ public class MusicApp {
             String input = scan.nextLine();
             try {
                 release_year = Integer.parseInt(input.strip());
+                if (release_year < 0 || release_year > Year.now().getValue()) {
+                    System.out.println("Invalid Release Year. Please try again.");
+                    continue;
+                }
             } catch (NumberFormatException e) {
-                // validate input
+                System.out.println("Invalid Release Year. Please try again.");
                 continue;
             }
             break;
@@ -187,14 +202,15 @@ public class MusicApp {
         String title;
         Album album;
         double secs = 0;
-        String lyrics;
+        String lyrics = "";
 
         do {
             //Get Song Name
             System.out.print("Song Title: ");
             title = scan.nextLine();
-            // validate input
-            break;
+            if (title.isBlank()) {
+                System.out.println("Invalid Song Title. Please try again");
+            } else { break; }
         } while (true);
 
         album = getAndInsertAlbum();
@@ -209,8 +225,12 @@ public class MusicApp {
             String input = scan.nextLine();
             try {
                 secs = Double.parseDouble(input.strip());
+                if (secs < 0 ) {
+                    System.out.println("Invalid Song Length. Please try again.");
+                    continue;
+                }
             } catch (NumberFormatException e) {
-                // validate input
+                System.out.println("Invalid Song Length. Please try again.");
                 continue;
             }
             break;
@@ -218,10 +238,20 @@ public class MusicApp {
 
         do {
             //Get Song Lyrics
-            System.out.print("Enter Song Lyrics: ");
-            lyrics = scan.nextLine();
-            // validate input
-            break;
+            System.out.print("Enter Song Lyrics (Followed by 'DONE' on a new line): ");
+            StringBuilder builder = new StringBuilder();
+            while (scan.hasNextLine()) {
+                String line = scan.nextLine();
+                if (line.equals("DONE")) {
+                    break;
+                }
+                builder.append(line).append(" ");
+            }
+            lyrics = builder.toString();
+            System.out.println(String.format("Lyrics: '%s'", lyrics));
+            if (lyrics.isBlank()) {
+                System.out.println("Invalid Lyrics. Please try again");
+            } else { break; }
         } while (true);
 
         String[] artist_names = album.getArtists();
