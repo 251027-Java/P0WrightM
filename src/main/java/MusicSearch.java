@@ -61,11 +61,11 @@ public class MusicSearch {
         return songs;
     }
 
-    public List<Song> searchByAuthor() {
-        System.out.println("Search By Author:\n");
+    public List<Song> searchByArtist() {
+        System.out.println("Search By Artist:\n");
         String userInput = getUserText();
 
-        List<Song> songs = this.searcher.getSongsByAuthor(userInput, 5);
+        List<Song> songs = this.searcher.getSongsByArtist(userInput, 5);
 
         return songs;
     }

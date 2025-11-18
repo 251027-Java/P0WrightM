@@ -82,13 +82,15 @@ public class PostgreSQLRepository implements IRepository, ISongSearcher {
                 //System.out.println("Successful connection to PostgreSQL Database");
             }
         } catch (SQLException e) {
-            log.warn("Unable to Establish Connection and Create Structure. Exiting.");
+            log.warn("Unable to Establish Connection and Create Structure. Exiting.", e);
             throw e;
         }
     }
 
     @Override
-    public void createArtist(Artist artist) {
+    public boolean createArtist(Artist artist) {
+        log.info("Attempting to insert Artist into Postgres Database");
+        log.debug(artist.toString());
         String name = artist.getName();
 
         String sql =
@@ -98,9 +100,12 @@ public class PostgreSQLRepository implements IRepository, ISongSearcher {
         try ( PreparedStatement stmt = connection.prepareStatement(sql) ) {
             stmt.setString(1, name);
             stmt.executeUpdate();
+            log.info("Artist insertion successful");
+            return true;
         } catch (SQLException e) {
-            e.printStackTrace();
+            log.warn("Failed to insert Artist into Postgres Database", e);
         }
+        return false;
     }
 
     private int getArtistId(String name) {
@@ -121,8 +126,10 @@ public class PostgreSQLRepository implements IRepository, ISongSearcher {
     }
 
     @Override
-    public void createAlbum(Album album) {
+    public boolean createAlbum(Album album) {
         // Database ignore case sensitivity for now.
+        log.info("Attempting to insert Album into Postgres Database");
+        log.debug(album.toString());
         String title = album.getTitle();
         int release_year = album.getReleaseYear();
 
@@ -147,8 +154,6 @@ public class PostgreSQLRepository implements IRepository, ISongSearcher {
             stmt.setString(1, title);
             stmt.setInt(2, release_year);
             rs = stmt.executeQuery();
-            System.out.println("Added new album");
-            //stmt.executeUpdate();
             sql = "INSERT INTO Music.Artist_Album (artist_id, album_id) " +
                     "VALUES (?, ?) " +
                     "ON CONFLICT (artist_id, album_id) DO NOTHING;";
@@ -163,14 +168,15 @@ public class PostgreSQLRepository implements IRepository, ISongSearcher {
                     artist_album_stmt.executeUpdate();
                 }
             } catch (SQLException e) {
-                e.printStackTrace();
+                log.warn("Error occurred when inserting album/artist into Artist_Album Table", e);
+                return false;
             }
+            log.info("Album insertion successful");
+            return true;
         } catch (SQLException e) {
-            System.out.println("Album already exists");
-            return;
+            log.info("Attempted to insert Album that already exists.");
+            return true;
         }
-        //System.out.println(rs);
-
     }
 
     private int getAlbumId(String title) {
@@ -192,8 +198,9 @@ public class PostgreSQLRepository implements IRepository, ISongSearcher {
     }
 
     @Override
-    public void createSong(Song song) {
-        //int artist_id = this.getArtistId(song.getArtist());
+    public boolean createSong(Song song) {
+        log.info("Attempting to insert Song into Postgres Database");
+        log.debug(song.toString());
         int album_id = this.getAlbumId(song.getAlbum());
         String lyrics = song.getLyrics();
         double duration = song.getLength();
@@ -212,8 +219,11 @@ public class PostgreSQLRepository implements IRepository, ISongSearcher {
             stmt.setString(4, lyrics);
             stmt.setObject(5, new PGvector(embedding));
             stmt.executeUpdate();
+            log.info("Song insertion successful");
+            return true;
         } catch (SQLException e) {
-            e.printStackTrace();
+            log.warn("Error occurred while insert song into Postgres Database", e);
+            return false;
         }
     }
 
@@ -262,12 +272,11 @@ public class PostgreSQLRepository implements IRepository, ISongSearcher {
                 String lyrics = rs.getString("lyrics");
                 similarSongs.add(new Song(artists, albumTitle, songTitle, duration, lyrics));
             }
-            return similarSongs;
         } catch (SQLException e) {
             e.printStackTrace();
         }
 
-        return List.of();
+        return similarSongs;
     }
 
     @Override
@@ -298,20 +307,83 @@ public class PostgreSQLRepository implements IRepository, ISongSearcher {
                 String lyrics = rs.getString("lyrics");
                 songs.add(new Song(artists, albumTitle, songTitle, duration, lyrics));
             }
-            return songs;
         } catch (SQLException e) {
             e.printStackTrace();
         }
-        return List.of();
+        return songs;
     }
 
     @Override
-    public List<Song> getSongsByAuthor(String author, int limit) {
-        return List.of();
+    public List<Song> getSongsByArtist(String artist, int limit) {
+        List<Song> songs = new ArrayList<>();
+        String sql =
+                "SELECT Song.title as song_title, Album.title as album_title, " +
+                        "ARRAY_AGG(DISTINCT Artist.name ORDER BY Artist.name) AS artists, " +
+                        "Song.duration as duration, Song.lyrics as lyrics " +
+                        "FROM Music.Song " +
+                        "JOIN Music.Album ON Album.album_id = Song.album_id " +
+                        "JOIN Music.Artist_Album ON Artist_Album.album_id = Album.album_id " +
+                        "JOIN Music.Artist ON Artist.artist_id = Artist_Album.artist_id " +
+                        "WHERE Album.album_id IN (" +
+                        "    SELECT DISTINCT Album.album_id " +
+                        "    FROM Music.Album " +
+                        "    JOIN Music.Artist_Album ON Artist_Album.album_id = Album.album_id " +
+                        "    JOIN Music.Artist ON Artist.artist_id = Artist_Album.artist_id " +
+                        "    WHERE Artist.name ILIKE ?" +
+                        ") " +
+                        "GROUP BY Song.song_id, Song.title, Album.title " +
+                        "LIMIT ?;";
+        try ( PreparedStatement stmt = connection.prepareStatement(sql) ) {
+            artist = "%" + artist + "%";
+            stmt.setString(1, artist);
+            stmt.setInt(2, limit);
+            ResultSet rs = stmt.executeQuery();
+            //int id = -1;
+            while (rs.next()) {
+                String songTitle = rs.getString("song_title");
+                String albumTitle = rs.getString("album_title");
+                String[] artists = (String[]) rs.getArray("artists").getArray();
+                int duration = rs.getInt("duration");
+                String lyrics = rs.getString("lyrics");
+                songs.add(new Song(artists, albumTitle, songTitle, duration, lyrics));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return songs;
     }
 
     @Override
     public List<Song> getSongsByAlbum(String album, int limit) {
-        return List.of();
+        List<Song> songs = new ArrayList<>();
+        String sql =
+                "SELECT Song.title as song_title, Album.title as album_title, " +
+                        "ARRAY_AGG(Artist.name ORDER BY Artist.name) AS artists, " +
+                        "Song.duration as duration, Song.lyrics as lyrics " +
+                        "FROM Music.Song " +
+                        "JOIN Music.Album ON Album.album_id = Song.album_id " +
+                        "JOIN Music.Artist_Album ON Artist_Album.album_id = Album.album_id " +
+                        "JOIN Music.Artist ON Artist.artist_id = Artist_Album.artist_id " +
+                        "WHERE Album.title ILIKE ? " +
+                        "GROUP BY Song.song_id, Song.title, Album.title " +
+                        "LIMIT ?;";
+        try ( PreparedStatement stmt = connection.prepareStatement(sql) ) {
+            album = "%" + album + "%";
+            stmt.setString(1, album);
+            stmt.setInt(2, limit);
+            ResultSet rs = stmt.executeQuery();
+            //int id = -1;
+            while (rs.next()) {
+                String songTitle = rs.getString("song_title");
+                String albumTitle = rs.getString("album_title");
+                String[] artists = (String[]) rs.getArray("artists").getArray();
+                int duration = rs.getInt("duration");
+                String lyrics = rs.getString("lyrics");
+                songs.add(new Song(artists, albumTitle, songTitle, duration, lyrics));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return songs;
     }
 }
