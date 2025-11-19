@@ -1,3 +1,6 @@
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.List;
 import java.util.Scanner;
 
@@ -7,34 +10,35 @@ public class MusicSearch {
     private final ISongSearcher searcher;
     private final IEmbedder embedder;
     private final Scanner scan;
+    private static final Logger log = LoggerFactory.getLogger(MusicSearch.class);
+
 
     public MusicSearch(ISongSearcher searcher, IEmbedder embedder, Scanner scan) {
         //this.repo = repo;
+        log.info("Initializing MusicSearch");
         this.searcher = searcher;
         this.embedder = embedder;
         this.scan = scan;
     }
 
-//    public void start() {
-//
-//    }
-
-    private String getUserText() {
+    private String getUserText(String searchText) {
         String input = "";
         do {
-            //Get song artist name
-            //System.out.print("Text to Search: ");
+            System.out.print("\n" + searchText);
             input = scan.nextLine();
-            // validate input
-            break;
+            if (input.isBlank()) {
+                System.out.println("Invalid Search Criteria. Please try again.");
+            } else {
+                break;
+            }
         } while (true);
 
-        return input;
+        return input.strip();
     }
 
     public List<Song> searchByLyrics() {
-        System.out.print("\nSearch By Lyrics: ");
-        String userInput = getUserText();
+        String userInput = getUserText("Search By Lyrics: ");
+        log.info("Searching by Lyrics");
 
         float[] embedding = this.embedder.getEmbedding(userInput);
 
@@ -44,8 +48,8 @@ public class MusicSearch {
     }
 
     public List<Song> searchByTitle() {
-        System.out.print("\nSearch By Title: ");
-        String userInput = getUserText();
+        String userInput = getUserText("Search By Title: ");
+        log.info("Searching by Song Title");
 
         List<Song> songs = this.searcher.getSongsByTitle(userInput, 5);
 
@@ -53,8 +57,8 @@ public class MusicSearch {
     }
 
     public List<Song> searchByAlbum() {
-        System.out.print("\nSearch By Album: ");
-        String userInput = getUserText();
+        String userInput = getUserText("Search By Album: ");
+        log.info("Searching by Album Name");
 
         List<Song> songs = this.searcher.getSongsByAlbum(userInput, 5);
 
@@ -62,8 +66,8 @@ public class MusicSearch {
     }
 
     public List<Song> searchByArtist() {
-        System.out.print("\nSearch By Artist: ");
-        String userInput = getUserText();
+        String userInput = getUserText("Search By Artist: ");
+        log.info("Searching by Artist");
 
         List<Song> songs = this.searcher.getSongsByArtist(userInput, 5);
 

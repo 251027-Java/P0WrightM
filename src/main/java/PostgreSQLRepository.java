@@ -4,6 +4,7 @@ import java.util.List;
 import com.pgvector.PGvector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.postgresql.util.PSQLException;
 
 //Want to use pgvector to contain lyric vectors inside postgresql database
 public class PostgreSQLRepository implements IRepository, ISongSearcher {
@@ -63,9 +64,9 @@ public class PostgreSQLRepository implements IRepository, ISongSearcher {
                                 "    album_id int," +
                                 "    CONSTRAINT pk_artist_album PRIMARY KEY (artist_id, album_id)," +
                                 "    CONSTRAINT fk_artist_album_artist_id FOREIGN KEY (artist_id)" +
-                                "        REFERENCES Music.Artist (artist_id) ON DELETE NO ACTION ON UPDATE NO ACTION," +
+                                "        REFERENCES Music.Artist (artist_id) ON DELETE RESTRICT ON UPDATE NO ACTION," +
                                 "    CONSTRAINT fk_artist_album_album_id FOREIGN KEY (album_id)" +
-                                "        REFERENCES Music.Album (album_id) ON DELETE NO ACTION ON UPDATE NO ACTION);" +
+                                "        REFERENCES Music.Album (album_id) ON DELETE RESTRICT ON UPDATE NO ACTION);" +
                                 "CREATE TABLE IF NOT EXISTS Music.Song (  " +
                                 "    song_id int DEFAULT nextval('song_song_id_seq'::regclass) NOT NULL," +
                                 "    title VARCHAR(120)," +
@@ -75,13 +76,16 @@ public class PostgreSQLRepository implements IRepository, ISongSearcher {
                                 "    embedding vector(100)," +
                                 "    CONSTRAINT pk_song PRIMARY KEY (song_id)," +
                                 "    CONSTRAINT fk_song_album_id FOREIGN KEY (album_id)" +
-                                "        REFERENCES Music.Album (album_id) ON DELETE NO ACTION ON UPDATE NO ACTION," +
+                                "        REFERENCES Music.Album (album_id) ON DELETE RESTRICT ON UPDATE NO ACTION," +
                                 "    CONSTRAINT unique_song_per_album UNIQUE (title, album_id));";
                 stmt.execute(sql);
                 log.info("Created Structure");
             }
+        } catch (PSQLException e) {
+            log.warn("Unable to Establish Connection to Postgres Database. Exiting.", e);
+            throw e;
         } catch (SQLException e) {
-            log.warn("Unable to Establish Connection and Create Structure. Exiting.", e);
+            log.warn("Unable to Create Structure for Postgres Database. Exiting.", e);
             throw e;
         }
     }
@@ -107,7 +111,41 @@ public class PostgreSQLRepository implements IRepository, ISongSearcher {
         return false;
     }
 
-    private int getArtistId(String name) {
+    public boolean deleteArtist(String name) {
+        log.info("Attempting to delete Artist from Postgres Database");
+        log.debug("Artist name: {}", name);
+        String sql =
+                "DELETE FROM Music.Artist" +
+                        "WHERE Artist.name = ?";
+        try ( PreparedStatement stmt = connection.prepareStatement(sql) ) {
+            stmt.setString(1, name);
+            stmt.executeUpdate();
+            log.info("Artist deletion successful");
+            return true;
+        } catch (SQLException e) {
+            log.warn("Failed to remove Artist from Postgres Database", e);
+        }
+        return false;
+    }
+
+    public Artist getArtist(String name) {
+        String sql =
+                "SELECT name FROM Music.Artist WHERE name = ?;";
+        log.info("Attempting to retrieve Artist from Postgres Database");
+        try ( PreparedStatement stmt = connection.prepareStatement(sql) ) {
+            stmt.setString(1, name);
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                name = rs.getString("name"); // By column name
+                return new Artist(name);
+            }
+        } catch (SQLException e) {
+            log.warn("Error when retrieving Artist ID from Postgres Database", e);
+        }
+        return null;
+    }
+
+    private int getArtistID(String name) {
         String sql =
                 "SELECT artist_id FROM Music.Artist WHERE name = ?;";
         log.info("Attempting to retrieve Artist ID from Postgres Database");
@@ -142,7 +180,7 @@ public class PostgreSQLRepository implements IRepository, ISongSearcher {
 
         int[] artist_ids = new int[artists.length];
         for (int i = 0; i < artists.length; i++) {
-            int id = this.getArtistId(artists[i]);
+            int id = this.getArtistID(artists[i]);
             if (id != -1) artist_ids[i] = id;
         }
 
@@ -179,14 +217,58 @@ public class PostgreSQLRepository implements IRepository, ISongSearcher {
         }
     }
 
-    private int getAlbumId(String title) {
-        //TODO: Need to handle where multiple albums have same title.
+    public boolean deleteAlbum(String name, int release_year) {
+        log.info("Attempting to delete Album from Postgres Database");
+        log.debug("Album name: {}", name);
         String sql =
-                "SELECT album_id FROM Music.Album WHERE title = ?;";
+                "DELETE FROM Music.Album" +
+                        "WHERE Album.name = ? AND Album.release_year = ?";
+        try ( PreparedStatement stmt = connection.prepareStatement(sql) ) {
+            stmt.setString(1, name);
+            stmt.setInt(2, release_year);
+            stmt.executeUpdate();
+            log.info("Album deletion successful");
+            return true;
+        } catch (SQLException e) {
+            log.warn("Failed to remove Album from Postgres Database", e);
+        }
+        return false;
+    }
+
+    public Album getAlbum(String title, int release_year) {
+        String sql =
+                "SELECT Album.title as title, Album.release_year as release_year,  " +
+                        "ARRAY_AGG(Artist.name ORDER BY Artist.name) AS artists, " +
+                        "FROM Music.Album " +
+                        "JOIN Music.Artist_Album ON Artist_Album.album_id = Album.album_id " +
+                        "JOIN Music.Artist ON Artist.artist_id = Artist_Album.artist_id " +
+                        "WHERE Album.title = ? AND Album.release_year = ?;";
+        log.info("Attempting to retrieve Album from Postgres Database");
+        int id = -1;
+        try ( PreparedStatement stmt = connection.prepareStatement(sql) ) {
+            stmt.setString(1, title);
+            stmt.setInt(2, release_year);
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                String[] artists = (String[]) rs.getArray("artists").getArray();
+                title = rs.getString("title");
+                release_year = rs.getInt("release_year");
+                return new Album(artists, title, release_year);
+            }
+        } catch (SQLException e) {
+            log.warn("Error when retrieving Album ID from Postgres Database", e);
+        }
+        return null;
+    }
+
+    private int getAlbumID(String title, int release_year) {
+        String sql =
+                "SELECT album_id FROM Music.Album WHERE title = ? AND release_year = ?;";
         log.info("Attempting to retrieve Album ID from Postgres Database");
         int id = -1;
         try ( PreparedStatement stmt = connection.prepareStatement(sql) ) {
             stmt.setString(1, title);
+            stmt.setInt(2, release_year);
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
                 id = rs.getInt("album_id"); // By column name
@@ -201,11 +283,7 @@ public class PostgreSQLRepository implements IRepository, ISongSearcher {
     public boolean createSong(Song song) {
         log.info("Attempting to insert Song into Postgres Database");
         log.debug(song.toString());
-        int album_id = this.getAlbumId(song.getAlbum());
-        if (album_id == -1) {
-            log.warn("Unable to locate Album ID in Postgres Database. Exiting");
-            return false;
-        }
+        int album_id = this.getAlbumID(song.getAlbum(), song.getRelease_year());
         String lyrics = song.getLyrics();
         double duration = song.getLength();
         String title = song.getTitle();
@@ -231,22 +309,38 @@ public class PostgreSQLRepository implements IRepository, ISongSearcher {
         }
     }
 
-//    private int getSongId(String title) {
-//        String sql =
-//                "SELECT song_id FROM Music.Song WHERE title = ?;";
-//        try ( PreparedStatement stmt = connection.prepareStatement(sql) ) {
-//            stmt.setString(1, title);
-//            ResultSet rs = stmt.executeQuery();
-//            int id = -1;
-//            while (rs.next()) {
-//                id = rs.getInt("album_id"); // By column name
-//            }
-//            return id;
-//        } catch (SQLException e) {
-//            e.printStackTrace();
-//        }
-//        return -1;
-//    }
+    public Song getSong(String title, String album_name, int release_year) {
+        String sql =
+                "SELECT Song.title as song_title, Album.title as album_title, " +
+                        "ARRAY_AGG(Artist.name ORDER BY Artist.name) AS artists, " +
+                        "Song.duration as duration, Song.lyrics as lyrics " +
+                        "FROM Music.Song " +
+                        "JOIN Music.Album ON Album.album_id = Song.album_id " +
+                        "JOIN Music.Artist_Album ON Artist_Album.album_id = Album.album_id " +
+                        "JOIN Music.Artist ON Artist.artist_id = Artist_Album.artist_id " +
+                        "WHERE Song.title = ? AND Album.title = ? AND Album.release_year = ? " +
+                        "GROUP BY Song.song_id, Song.title, Album.title;";
+        log.info("Attempting to get song from Postgres Database");
+        try ( PreparedStatement stmt = connection.prepareStatement(sql) ) {
+            stmt.setString(1, title);
+            stmt.setString(2, album_name);
+            stmt.setInt(3, release_year);
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                String songTitle = rs.getString("song_title");
+                String albumTitle = rs.getString("album_title");
+                String[] artists = (String[]) rs.getArray("artists").getArray();
+                int duration = rs.getInt("duration");
+                String lyrics = rs.getString("lyrics");
+                return new Song(artists, albumTitle, release_year, songTitle, duration, lyrics);
+            }
+        } catch (SQLException e) {
+            log.warn("Error when attempting to get song from Postgres Database", e);
+        }
+        return null;
+    }
+
+    // getSongID?
 
     /*
     ISongSearcher Methods
@@ -256,7 +350,7 @@ public class PostgreSQLRepository implements IRepository, ISongSearcher {
         List<Song> similarSongs = new ArrayList<>();
         String sql =
                 "SELECT Song.title as song_title, Album.title as album_title, " +
-                        "ARRAY_AGG(Artist.name ORDER BY Artist.name) AS artists, " +
+                        "Album.release_year as release_year, ARRAY_AGG(Artist.name ORDER BY Artist.name) AS artists, " +
                         "Song.duration as duration, Song.lyrics as lyrics " +
                         "FROM Music.Song " +
                         "JOIN Music.Album ON Album.album_id = Song.album_id " +
@@ -274,10 +368,11 @@ public class PostgreSQLRepository implements IRepository, ISongSearcher {
             while (rs.next()) {
                 String songTitle = rs.getString("song_title");
                 String albumTitle = rs.getString("album_title");
+                int release_year = rs.getInt("release_year");
                 String[] artists = (String[]) rs.getArray("artists").getArray();
                 int duration = rs.getInt("duration");
                 String lyrics = rs.getString("lyrics");
-                similarSongs.add(new Song(artists, albumTitle, songTitle, duration, lyrics));
+                similarSongs.add(new Song(artists, albumTitle, release_year, songTitle, duration, lyrics));
             }
         } catch (SQLException e) {
             log.info("Error occurred while searching for similar songs by lyrics embedding", e);
@@ -291,7 +386,7 @@ public class PostgreSQLRepository implements IRepository, ISongSearcher {
         List<Song> songs = new ArrayList<>();
         String sql =
                 "SELECT Song.title as song_title, Album.title as album_title, " +
-                        "ARRAY_AGG(Artist.name ORDER BY Artist.name) AS artists, " +
+                        "Album.release_year as release_year, ARRAY_AGG(Artist.name ORDER BY Artist.name) AS artists, " +
                         "Song.duration as duration, Song.lyrics as lyrics " +
                         "FROM Music.Song " +
                         "JOIN Music.Album ON Album.album_id = Song.album_id " +
@@ -310,10 +405,11 @@ public class PostgreSQLRepository implements IRepository, ISongSearcher {
             while (rs.next()) {
                 String songTitle = rs.getString("song_title");
                 String albumTitle = rs.getString("album_title");
+                int release_year = rs.getInt("release_year");
                 String[] artists = (String[]) rs.getArray("artists").getArray();
                 int duration = rs.getInt("duration");
                 String lyrics = rs.getString("lyrics");
-                songs.add(new Song(artists, albumTitle, songTitle, duration, lyrics));
+                songs.add(new Song(artists, albumTitle, release_year, songTitle, duration, lyrics));
             }
         } catch (SQLException e) {
             log.info("Error occurred while searching for songs by title", e);
@@ -326,7 +422,7 @@ public class PostgreSQLRepository implements IRepository, ISongSearcher {
         List<Song> songs = new ArrayList<>();
         String sql =
                 "SELECT Song.title as song_title, Album.title as album_title, " +
-                        "ARRAY_AGG(DISTINCT Artist.name ORDER BY Artist.name) AS artists, " +
+                        "Album.release_year as release_year, ARRAY_AGG(DISTINCT Artist.name ORDER BY Artist.name) AS artists, " +
                         "Song.duration as duration, Song.lyrics as lyrics " +
                         "FROM Music.Song " +
                         "JOIN Music.Album ON Album.album_id = Song.album_id " +
@@ -351,10 +447,11 @@ public class PostgreSQLRepository implements IRepository, ISongSearcher {
             while (rs.next()) {
                 String songTitle = rs.getString("song_title");
                 String albumTitle = rs.getString("album_title");
+                int release_year = rs.getInt("release_year");
                 String[] artists = (String[]) rs.getArray("artists").getArray();
                 int duration = rs.getInt("duration");
                 String lyrics = rs.getString("lyrics");
-                songs.add(new Song(artists, albumTitle, songTitle, duration, lyrics));
+                songs.add(new Song(artists, albumTitle, release_year, songTitle, duration, lyrics));
             }
         } catch (SQLException e) {
             log.info("Error occurred while searching for songs by artist", e);
@@ -367,7 +464,7 @@ public class PostgreSQLRepository implements IRepository, ISongSearcher {
         List<Song> songs = new ArrayList<>();
         String sql =
                 "SELECT Song.title as song_title, Album.title as album_title, " +
-                        "ARRAY_AGG(Artist.name ORDER BY Artist.name) AS artists, " +
+                        "Album.release_year as release_year, ARRAY_AGG(Artist.name ORDER BY Artist.name) AS artists, " +
                         "Song.duration as duration, Song.lyrics as lyrics " +
                         "FROM Music.Song " +
                         "JOIN Music.Album ON Album.album_id = Song.album_id " +
@@ -386,10 +483,11 @@ public class PostgreSQLRepository implements IRepository, ISongSearcher {
             while (rs.next()) {
                 String songTitle = rs.getString("song_title");
                 String albumTitle = rs.getString("album_title");
+                int release_year = rs.getInt("release_year");
                 String[] artists = (String[]) rs.getArray("artists").getArray();
                 int duration = rs.getInt("duration");
                 String lyrics = rs.getString("lyrics");
-                songs.add(new Song(artists, albumTitle, songTitle, duration, lyrics));
+                songs.add(new Song(artists, albumTitle, release_year, songTitle, duration, lyrics));
             }
         } catch (SQLException e) {
             log.info("Error occurred while searching for songs by album", e);

@@ -10,15 +10,17 @@ public class Song {
     private final String title;
     private final double length;
     private final String lyrics;
+    private final int release_year;
     //Not sure if want to include embedding here?
 
-    public Song(String[] artists, String album, String title, double length, String lyrics) {
+    public Song(String[] artists, String album, int release_year, String title, double length, String lyrics) {
         //this.song_id = song_id;
         this.artists = artists;
         this.album = album;
         this.title = title;
         this.length = length;
         this.lyrics = lyrics;
+        this.release_year = release_year;
     }
 
 
@@ -54,9 +56,13 @@ public class Song {
         return this.lyrics;
     }
 
+    public int getRelease_year() {
+        return this.release_year;
+    }
+
     @Override
     public String toString() {
-        return String.format("Song: \"%s\", Artist: %s, Album: %s, Duration: %.2f",
-                this.title, Arrays.toString(this.artists), this.album, this.length);
+        return String.format("Song: \"%s\", Artist: %s, Album: %s (%d), Duration: %.2f",
+                this.title, Arrays.toString(this.artists), this.album, this.release_year, this.length);
     }
 }

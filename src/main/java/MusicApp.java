@@ -16,16 +16,18 @@ public class MusicApp {
     private static final Logger log = LoggerFactory.getLogger(MusicApp.class);
 
     public MusicApp(IRepository repo, ISongSearcher searcher, IEmbedder embedder) {
+        log.info("Initializing MusicApp");
         this.repo = repo;
         this.searcher = searcher;
         this.embedder = embedder;
         this.scan = new Scanner(System.in);
+        log.info("Creating new MusicSearch Object");
         this.musicSearch = new MusicSearch(this.searcher, this.embedder, this.scan);
     }
 
     public void start() {
         // Do stuff
-
+        log.info("Beginning MusicApp Service");
         System.out.println("Welcome to Music App!\n");
         System.out.println("Please select one of the options from the menu below to begin\n");
 
@@ -45,9 +47,10 @@ public class MusicApp {
 
             System.out.print("\nSelection: ");
             input = scan.nextLine().strip();
+            log.debug("User Input Selection: {}", input);
 
             if (input.equals("1")) {
-                Artist[] artists = getAndInsertArtist();
+                Artist[] artists = getAndInsertArtists();
                 if (artists != null) System.out.println(Arrays.toString(artists));
                 continue;
             } else if (input.equals("2")) {
@@ -82,7 +85,11 @@ public class MusicApp {
         } while (true);
 
         System.out.println("Thanks for using MusicApp!");
+    }
 
+    public void close() {
+        this.scan.close();
+        this.musicSearch = null;
     }
 
     private void displaySongs(List<Song> songs) {
@@ -100,9 +107,10 @@ public class MusicApp {
     tested separately. The Get logic requires system.in input, so I don't
     want to test it with the Insert Logic.
      */
-    private Artist[] getAndInsertArtist() {
+    private Artist[] getAndInsertArtists() {
         String[] names;
         boolean isInvalid = false;
+        log.info("Getting artist information from user");
         do {
             //Get song artist name
             System.out.print("Artists (Separate by '#'): ");
@@ -119,37 +127,55 @@ public class MusicApp {
             }
         } while (isInvalid);
 
-        return insertArtistRepo(names);
+        return insertArtistsRepo(names);
     }
 
-    public Artist[] insertArtistRepo(String[] names) {
+    public Artist insertArtistRepo(String name) {
 
-        log.info("Attempting to insert Artist into IRepository");
+        if (repo.getArtist(name) != null) {
+            return null;
+        }
+
+        Artist artist = new Artist(name.strip());
+        boolean didInsert = repo.createArtist(artist);
+        if (!didInsert) {
+            log.warn("Failed to insert artist into IRepository.");
+            System.out.println("An error occurred when adding new Artist");
+            return null;
+        } else {
+            log.info("Successfully inserted");
+        }
+        return artist;
+    }
+
+    public Artist[] insertArtistsRepo(String[] names) {
+
+        log.info("Attempting to insert Artists into IRepository");
         Artist[] artists = new Artist[names.length];
         for (int i = 0; i < names.length; i++) {
-            Artist artist = new Artist(names[i].strip());
-            boolean didInsert = repo.createArtist(artist);
-            if (!didInsert) {
-                log.warn("Failed to insert artist into IRepository.");
-                System.out.println("An error occurred when adding new Artist");
-                return null;
-            } else {
-                log.info("Successfully inserted");
-            }
-            artists[i] = artist;
+            artists[i] = insertArtistRepo(names[i]);
         }
 
         return artists;
+    }
+
+    public boolean deleteArtistRepo(String name) {
+        if (repo.getArtist(name) == null) {
+            return false;
+        }
+        return repo.deleteArtist(name);
     }
 
     private Album getAndInsertAlbum() {
         String name;
         int release_year;
 
-        Artist[] artists = this.getAndInsertArtist();
+        Artist[] artists = this.getAndInsertArtists();
         if (artists == null) {
             return null;
         }
+
+        log.info("Getting Album information from user");
 
         do {
             //Get album name
@@ -187,6 +213,11 @@ public class MusicApp {
 
     public Album insertAlbumRepo(String[] artist_names, String album_name, int release_year) {
 
+        if (repo.getAlbum(album_name, release_year) != null) {
+            return null;
+        }
+
+        log.info("Attempting to insert Album into IRepository");
         Album album = new Album(artist_names, album_name, release_year);
         boolean didInsert = repo.createAlbum(album);
         if (!didInsert) {
@@ -198,11 +229,26 @@ public class MusicApp {
         return album;
     }
 
+    public boolean deleteAlbumRepo(String name, int release_year) {
+        if (repo.getAlbum(name, release_year) == null) {
+            return false;
+        }
+        return repo.deleteAlbum(name, release_year);
+    }
+
     private Song getAndInsertSong() {
         String title;
         Album album;
         double secs = 0;
         String lyrics = "";
+
+        album = getAndInsertAlbum();
+        if (album == null) {
+            return null;
+        }
+        //String album_title = album.getTitle();
+
+        log.info("Getting Song information from user");
 
         do {
             //Get Song Name
@@ -212,12 +258,6 @@ public class MusicApp {
                 System.out.println("Invalid Song Title. Please try again");
             } else { break; }
         } while (true);
-
-        album = getAndInsertAlbum();
-        if (album == null) {
-            return null;
-        }
-        String album_title = album.getTitle();
 
         do {
             //Get song duration
@@ -248,7 +288,6 @@ public class MusicApp {
                 builder.append(line).append(" ");
             }
             lyrics = builder.toString();
-            System.out.println(String.format("Lyrics: '%s'", lyrics));
             if (lyrics.isBlank()) {
                 System.out.println("Invalid Lyrics. Please try again");
             } else { break; }
@@ -256,12 +295,17 @@ public class MusicApp {
 
         String[] artist_names = album.getArtists();
 
-        return insertSongRepo(artist_names, album_title, title, secs, lyrics);
+        return insertSongRepo(artist_names, album, title, secs, lyrics);
     }
 
-    public Song insertSongRepo(String[] artist_names, String album_title, String song_title, double secs, String lyrics) {
+    public Song insertSongRepo(String[] artist_names, Album album, String song_title, double secs, String lyrics) {
 
-        Song song = new Song(artist_names, album_title, song_title.strip(), secs, lyrics.strip());
+        if (repo.getSong(song_title, album.getTitle(), album.getReleaseYear()) != null) {
+            return null;
+        }
+
+        log.info("Attempting to insert Song into IRepository");
+        Song song = new Song(artist_names, album.getTitle(), album.getReleaseYear(), song_title.strip(), secs, lyrics.strip());
         boolean didInsert = repo.createSong(song);
         if (!didInsert) {
             log.warn("Failed to insert song into IRepository.");

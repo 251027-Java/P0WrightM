@@ -13,6 +13,7 @@ public class Main {
         // Start Searcher
         IEmbedder embedder;
         log.info("Loading MusicApp Resources");
+        System.out.println("MusicApp is starting...");
         try {
             log.info("Loading IEmbedder");
             embedder = new Doc2VecEmbedder();
@@ -20,7 +21,6 @@ public class Main {
         } catch (IOException e) {
             log.error("Unable to create IEmbedder. Exiting.");
             System.out.println("Failed to load music app.\nError was:");
-            e.printStackTrace();
             return;
         }
         IRepository repo;
@@ -31,7 +31,6 @@ public class Main {
         } catch (SQLException e) {
             log.error("Unable to create IRepository. Exiting.");
             System.out.println("Failed to load music app.");
-            e.printStackTrace();
             return;
         }
 
@@ -42,7 +41,9 @@ public class Main {
         log.info("Creating MusicApp Service");
         MusicApp music = new MusicApp(repo, searcher, embedder);
         log.info("Created MusicApp Service");
-        log.info("Beginning MusicApp Service");
+        log.info("Starting MusicApp Service");
         music.start();
+        log.info("Closing MusicApp Service");
+        music.close();
     }
 }
