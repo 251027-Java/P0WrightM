@@ -44,7 +44,5 @@ public class Main {
         log.info("Created MusicApp Service");
         log.info("Beginning MusicApp Service");
         music.start();
-
-        //System.out.println("Compiled!");
     }
 }

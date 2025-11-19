@@ -1,12 +1,10 @@
 import java.io.File;
 import java.io.IOException;
-import java.util.Arrays;
 import org.deeplearning4j.models.embeddings.loader.WordVectorSerializer;
 import org.deeplearning4j.models.paragraphvectors.ParagraphVectors;
 import org.deeplearning4j.text.tokenization.tokenizer.preprocessor.CommonPreprocessor;
 import org.deeplearning4j.text.tokenization.tokenizerfactory.DefaultTokenizerFactory;
 import org.deeplearning4j.text.tokenization.tokenizerfactory.TokenizerFactory;
-import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.exception.ND4JIllegalStateException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,6 +23,8 @@ public class Doc2VecEmbedder implements IEmbedder {
     private static final Logger log = LoggerFactory.getLogger(Doc2VecEmbedder.class);
 
     public Doc2VecEmbedder() throws IOException {
+        //The line below was used to download the pretrained model.
+        //dataLocalPath = DownloaderUtility.NLPDATA.Download();
 
         File resource = new File(this.doc2vecPretrained);
         log.info("Loading Tokenizer for Paragraph Vectors");
@@ -42,19 +42,9 @@ public class Doc2VecEmbedder implements IEmbedder {
             throw e;
         }
 
-
         this.embedder.setTokenizerFactory(t);
-        this.embedder.getConfiguration().setIterations(1); // please note, we set iterations to 1 here, just to speedup inference
+        this.embedder.getConfiguration().setIterations(1); // set to 1 to speedup inference
 
-        /*
-        // here's alternative way of doing this, word2vec model can be used directly
-        // PLEASE NOTE: you can't use Google-like model here, since it doesn't have any Huffman tree information shipped.
-
-        ParagraphVectors vectors = new ParagraphVectors.Builder()
-            .useExistingWordVectors(word2vec)
-            .build();
-        */
-        // we have to define tokenizer here, because restored model has no idea about it
         log.info("Initialized Doc2Vec Embedder");
     }
 

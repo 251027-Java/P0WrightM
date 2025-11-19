@@ -23,7 +23,7 @@ public class MusicSearch {
         String input = "";
         do {
             //Get song artist name
-            System.out.print("Text to Search: ");
+            //System.out.print("Text to Search: ");
             input = scan.nextLine();
             // validate input
             break;
@@ -33,7 +33,7 @@ public class MusicSearch {
     }
 
     public List<Song> searchByLyrics() {
-        System.out.println("Search By Lyrics:\n");
+        System.out.print("\nSearch By Lyrics: ");
         String userInput = getUserText();
 
         float[] embedding = this.embedder.getEmbedding(userInput);
@@ -44,7 +44,7 @@ public class MusicSearch {
     }
 
     public List<Song> searchByTitle() {
-        System.out.println("Search By Title:\n");
+        System.out.print("\nSearch By Title: ");
         String userInput = getUserText();
 
         List<Song> songs = this.searcher.getSongsByTitle(userInput, 5);
@@ -53,7 +53,7 @@ public class MusicSearch {
     }
 
     public List<Song> searchByAlbum() {
-        System.out.println("Search By Album:\n");
+        System.out.print("\nSearch By Album: ");
         String userInput = getUserText();
 
         List<Song> songs = this.searcher.getSongsByAlbum(userInput, 5);
@@ -62,7 +62,7 @@ public class MusicSearch {
     }
 
     public List<Song> searchByArtist() {
-        System.out.println("Search By Artist:\n");
+        System.out.print("\nSearch By Artist: ");
         String userInput = getUserText();
 
         List<Song> songs = this.searcher.getSongsByArtist(userInput, 5);

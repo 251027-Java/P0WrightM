@@ -20,6 +20,6 @@ public class Artist {
     }
 
     public String toString() {
-        return "Artist: {" + this.getName() + "}";
+        return "Artist: " + this.getName();
     }
 }
