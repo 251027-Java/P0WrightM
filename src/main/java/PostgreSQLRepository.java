@@ -340,6 +340,27 @@ public class PostgreSQLRepository implements IRepository, ISongSearcher {
         return null;
     }
 
+    public boolean deleteSong(String title, String album_name, int release_year) {
+        log.info("Attempting to delete Song from Postgres Database");
+        log.debug("Song title: {}", title);
+
+        int album_id = this.getAlbumID(album_name, release_year);
+
+        String sql =
+                "DELETE FROM Music.Song" +
+                        "WHERE Song.title = ? AND Song.album_id = ?";
+        try ( PreparedStatement stmt = connection.prepareStatement(sql) ) {
+            stmt.setString(1, title);
+            stmt.setInt(2, album_id);
+            stmt.executeUpdate();
+            log.info("Song deletion successful");
+            return true;
+        } catch (SQLException e) {
+            log.warn("Failed to remove Song from Postgres Database", e);
+        }
+        return false;
+    }
+
     // getSongID?
 
     /*

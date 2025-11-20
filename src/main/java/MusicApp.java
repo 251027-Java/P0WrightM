@@ -315,4 +315,11 @@ public class MusicApp {
 
         return song;
     }
+
+    public boolean deleteSongRepo(String title, String album_name, int release_year) {
+        if (repo.getSong(title, album_name, release_year) == null) {
+            return false;
+        }
+        return repo.deleteSong(title, album_name, release_year);
+    }
 }
