@@ -66,7 +66,7 @@ public class PostgreSQLRepository implements IRepository, ISongSearcher {
                                 "    CONSTRAINT fk_artist_album_artist_id FOREIGN KEY (artist_id)" +
                                 "        REFERENCES Music.Artist (artist_id) ON DELETE RESTRICT ON UPDATE NO ACTION," +
                                 "    CONSTRAINT fk_artist_album_album_id FOREIGN KEY (album_id)" +
-                                "        REFERENCES Music.Album (album_id) ON DELETE RESTRICT ON UPDATE NO ACTION);" +
+                                "        REFERENCES Music.Album (album_id) ON DELETE CASCADE ON UPDATE NO ACTION);" +
                                 "CREATE TABLE IF NOT EXISTS Music.Song (  " +
                                 "    song_id int DEFAULT nextval('song_song_id_seq'::regclass) NOT NULL," +
                                 "    title VARCHAR(120)," +
@@ -115,7 +115,7 @@ public class PostgreSQLRepository implements IRepository, ISongSearcher {
         log.info("Attempting to delete Artist from Postgres Database");
         log.debug("Artist name: {}", name);
         String sql =
-                "DELETE FROM Music.Artist" +
+                "DELETE FROM Music.Artist " +
                         "WHERE Artist.name = ?";
         try ( PreparedStatement stmt = connection.prepareStatement(sql) ) {
             stmt.setString(1, name);
@@ -221,8 +221,8 @@ public class PostgreSQLRepository implements IRepository, ISongSearcher {
         log.info("Attempting to delete Album from Postgres Database");
         log.debug("Album name: {}", name);
         String sql =
-                "DELETE FROM Music.Album" +
-                        "WHERE Album.name = ? AND Album.release_year = ?";
+                "DELETE FROM Music.Album " +
+                        "WHERE Album.title = ? AND Album.release_year = ?";
         try ( PreparedStatement stmt = connection.prepareStatement(sql) ) {
             stmt.setString(1, name);
             stmt.setInt(2, release_year);
@@ -238,11 +238,12 @@ public class PostgreSQLRepository implements IRepository, ISongSearcher {
     public Album getAlbum(String title, int release_year) {
         String sql =
                 "SELECT Album.title as title, Album.release_year as release_year,  " +
-                        "ARRAY_AGG(Artist.name ORDER BY Artist.name) AS artists, " +
+                        "ARRAY_AGG(Artist.name ORDER BY Artist.name) AS artists " +
                         "FROM Music.Album " +
                         "JOIN Music.Artist_Album ON Artist_Album.album_id = Album.album_id " +
                         "JOIN Music.Artist ON Artist.artist_id = Artist_Album.artist_id " +
-                        "WHERE Album.title = ? AND Album.release_year = ?;";
+                        "WHERE Album.title = ? AND Album.release_year = ? " +
+                        "GROUP BY Album.title, Album.release_year;";
         log.info("Attempting to retrieve Album from Postgres Database");
         int id = -1;
         try ( PreparedStatement stmt = connection.prepareStatement(sql) ) {
@@ -291,8 +292,8 @@ public class PostgreSQLRepository implements IRepository, ISongSearcher {
         float[] embedding = this.embedder.getEmbedding(lyrics);
 
         String sql =
-                "INSERT INTO Music.Song (title, album_id, duration, lyrics, embedding)" +
-                        "VALUES (?, ?, ?, ?, ?)" +
+                "INSERT INTO Music.Song (title, album_id, duration, lyrics, embedding) " +
+                        "VALUES (?, ?, ?, ?, ?) " +
                         "ON CONFLICT (title, album_id) DO NOTHING;";
         try ( PreparedStatement stmt = connection.prepareStatement(sql) ) {
             stmt.setString(1, title);
@@ -347,7 +348,7 @@ public class PostgreSQLRepository implements IRepository, ISongSearcher {
         int album_id = this.getAlbumID(album_name, release_year);
 
         String sql =
-                "DELETE FROM Music.Song" +
+                "DELETE FROM Music.Song " +
                         "WHERE Song.title = ? AND Song.album_id = ?";
         try ( PreparedStatement stmt = connection.prepareStatement(sql) ) {
             stmt.setString(1, title);
@@ -377,7 +378,7 @@ public class PostgreSQLRepository implements IRepository, ISongSearcher {
                         "JOIN Music.Album ON Album.album_id = Song.album_id " +
                         "JOIN Music.Artist_Album ON Artist_Album.album_id = Album.album_id " +
                         "JOIN Music.Artist ON Artist.artist_id = Artist_Album.artist_id " +
-                        "GROUP BY Song.song_id, Song.title, Album.title " +
+                        "GROUP BY Song.song_id, Song.title, Album.title, Album.release_year " +
                         "ORDER BY embedding <=> ? " +
                         "LIMIT ?;";
         log.info("Attempting to Search for Similar Songs by Lyrics Embedding");
@@ -414,7 +415,7 @@ public class PostgreSQLRepository implements IRepository, ISongSearcher {
                         "JOIN Music.Artist_Album ON Artist_Album.album_id = Album.album_id " +
                         "JOIN Music.Artist ON Artist.artist_id = Artist_Album.artist_id " +
                         "WHERE Song.title ILIKE ? " +
-                        "GROUP BY Song.song_id, Song.title, Album.title " +
+                        "GROUP BY Song.song_id, Song.title, Album.title, Album.release_year " +
                         "LIMIT ?;";
         log.info("Attempting to Search for Songs by Title");
         try ( PreparedStatement stmt = connection.prepareStatement(sql) ) {
@@ -456,7 +457,7 @@ public class PostgreSQLRepository implements IRepository, ISongSearcher {
                         "    JOIN Music.Artist ON Artist.artist_id = Artist_Album.artist_id " +
                         "    WHERE Artist.name ILIKE ?" +
                         ") " +
-                        "GROUP BY Song.song_id, Song.title, Album.title " +
+                        "GROUP BY Song.song_id, Song.title, Album.title, Album.release_year " +
                         "LIMIT ?;";
         log.info("Attempting to Search for Songs by Artist");
         try ( PreparedStatement stmt = connection.prepareStatement(sql) ) {
@@ -492,7 +493,7 @@ public class PostgreSQLRepository implements IRepository, ISongSearcher {
                         "JOIN Music.Artist_Album ON Artist_Album.album_id = Album.album_id " +
                         "JOIN Music.Artist ON Artist.artist_id = Artist_Album.artist_id " +
                         "WHERE Album.title ILIKE ? " +
-                        "GROUP BY Song.song_id, Song.title, Album.title " +
+                        "GROUP BY Song.song_id, Song.title, Album.title, Album.release_year " +
                         "LIMIT ?;";
         log.info("Attempting to Search for Songs by Album");
         try ( PreparedStatement stmt = connection.prepareStatement(sql) ) {

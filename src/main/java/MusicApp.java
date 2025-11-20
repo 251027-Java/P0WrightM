@@ -37,13 +37,16 @@ public class MusicApp {
         do {
             System.out.println("Options are:\n");
             System.out.println("\t1: Add Artist");
-            System.out.println("\t2: Add Album");
-            System.out.println("\t3: Add Song");
-            System.out.println("\t4: Search by Artist");
-            System.out.println("\t5: Search by Album");
-            System.out.println("\t6: Search by Song Title");
-            System.out.println("\t7: Search for Similar Songs by Lyrics");
-            System.out.println("\t8: Quit");
+            System.out.println("\t2: Delete Artist");
+            System.out.println("\t3: Add Album");
+            System.out.println("\t4: Delete Album");
+            System.out.println("\t5: Add Song");
+            System.out.println("\t6: Delete Song");
+            System.out.println("\t7: Search by Artist");
+            System.out.println("\t8: Search by Album");
+            System.out.println("\t9: Search by Song Title");
+            System.out.println("\t10: Search for Similar Songs by Lyrics");
+            System.out.println("\tQ: Quit");
 
             System.out.print("\nSelection: ");
             input = scan.nextLine().strip();
@@ -54,22 +57,39 @@ public class MusicApp {
                 if (artists != null) System.out.println(Arrays.toString(artists));
                 continue;
             } else if (input.equals("2")) {
+                boolean didDelete = getAndDeleteArtist();
+                if (didDelete) { System.out.println("Deleted Artist");}
+                else { System.out.println("Failed to remove Artist. Either Artist doesn't exist or an album depends " +
+                        "on the Artist. Please delete any necessary Albums/Songs first and try again.");}
+                continue;
+            } else if (input.equals("3")) {
                 Album album = getAndInsertAlbum();
                 if (album != null) System.out.println(album);
                 continue;
-            } else if (input.equals("3")) {
+            } else if (input.equals("4")) {
+                boolean didDelete = getAndDeleteAlbum();
+                if (didDelete) { System.out.println("Deleted Album");}
+                else { System.out.println("Failed to remove Album. Either Album doesn't exist or a Song/Songs depends " +
+                        "on the Album. Please delete any necessary Songs first and try again.");}
+                continue;
+            } else if (input.equals("5")) {
                 Song song = getAndInsertSong();
                 if (song != null) System.out.println(song);
                 continue;
-            } else if (input.equals("4")) {
-                returnedSongs = musicSearch.searchByArtist();
-            } else if (input.equals("5")) {
-                returnedSongs = musicSearch.searchByAlbum();
             } else if (input.equals("6")) {
-                returnedSongs = musicSearch.searchByTitle();
+                boolean didDelete = getAndDeleteSong();
+                if (didDelete) { System.out.println("Deleted Song");}
+                else { System.out.println("Failed to remove Song. Please verify that the Song exists.");}
+                continue;
             } else if (input.equals("7")) {
-                returnedSongs = musicSearch.searchByLyrics();
+                returnedSongs = musicSearch.searchByArtist();
             } else if (input.equals("8")) {
+                returnedSongs = musicSearch.searchByAlbum();
+            } else if (input.equals("9")) {
+                returnedSongs = musicSearch.searchByTitle();
+            } else if (input.equals("10")) {
+                returnedSongs = musicSearch.searchByLyrics();
+            } else if (input.equalsIgnoreCase("Q")) {
                 break;
             } else {
                 System.out.println("Invalid Selection. Please try again");
@@ -110,7 +130,7 @@ public class MusicApp {
     private Artist[] getAndInsertArtists() {
         String[] names;
         boolean isInvalid = false;
-        log.info("Getting artist information from user");
+        log.info("Getting artist information from user for insertion");
         do {
             //Get song artist name
             System.out.print("Artists (Separate by '#'): ");
@@ -132,8 +152,9 @@ public class MusicApp {
 
     public Artist insertArtistRepo(String name) {
 
-        if (repo.getArtist(name) != null) {
-            return null;
+        Artist checkArtist = repo.getArtist(name);
+        if (checkArtist != null) {
+            return checkArtist;
         }
 
         Artist artist = new Artist(name.strip());
@@ -159,6 +180,25 @@ public class MusicApp {
         return artists;
     }
 
+    private boolean getAndDeleteArtist() {
+        String name;
+        boolean isInvalid = false;
+        log.info("Getting artist information from user for deletion");
+        do {
+            System.out.print("Artist: ");
+            name = scan.nextLine();
+            if (name.isBlank()) {
+                System.out.println("Invalid artist name. Please try again.");
+                isInvalid = true;
+            } else {
+                isInvalid = false;
+            }
+
+        } while (isInvalid);
+
+        return deleteArtistRepo(name);
+    }
+
     public boolean deleteArtistRepo(String name) {
         if (repo.getArtist(name) == null) {
             return false;
@@ -175,7 +215,7 @@ public class MusicApp {
             return null;
         }
 
-        log.info("Getting Album information from user");
+        log.info("Getting Album information from user for insertion");
 
         do {
             //Get album name
@@ -229,6 +269,41 @@ public class MusicApp {
         return album;
     }
 
+    private boolean getAndDeleteAlbum() {
+        String name;
+        int release_year;
+
+        log.info("Getting Album information from user for deletion");
+
+        do {
+            //Get album name
+            System.out.print("Album Name: ");
+            name = scan.nextLine().strip();
+            if (name.isBlank()) {
+                System.out.println("Invalid Album Name. Please try again");
+            } else { break; }
+        } while (true);
+
+        do {
+            //Get release year
+            System.out.print("Release year: ");
+            String input = scan.nextLine();
+            try {
+                release_year = Integer.parseInt(input.strip());
+                if (release_year < 0 || release_year > Year.now().getValue()) {
+                    System.out.println("Invalid Release Year. Please try again.");
+                    continue;
+                }
+            } catch (NumberFormatException e) {
+                System.out.println("Invalid Release Year. Please try again.");
+                continue;
+            }
+            break;
+        } while (true);
+
+        return deleteAlbumRepo(name, release_year);
+    }
+
     public boolean deleteAlbumRepo(String name, int release_year) {
         if (repo.getAlbum(name, release_year) == null) {
             return false;
@@ -248,7 +323,7 @@ public class MusicApp {
         }
         //String album_title = album.getTitle();
 
-        log.info("Getting Song information from user");
+        log.info("Getting Song information from user for insertion");
 
         do {
             //Get Song Name
@@ -314,6 +389,53 @@ public class MusicApp {
         }
 
         return song;
+    }
+
+    private boolean getAndDeleteSong() {
+        String title;
+        String album_name;
+        int release_year;
+        double secs = 0;
+        String lyrics = "";
+
+        log.info("Getting Song information from user for deletion");
+
+        do {
+            //Get Song Name
+            System.out.print("Song Title: ");
+            title = scan.nextLine();
+            if (title.isBlank()) {
+                System.out.println("Invalid Song Title. Please try again");
+            } else { break; }
+        } while (true);
+
+        do {
+            //Get album name
+            System.out.print("Album Name: ");
+            album_name = scan.nextLine().strip();
+            if (album_name.isBlank()) {
+                System.out.println("Invalid Album Name. Please try again");
+            } else { break; }
+        } while (true);
+
+        do {
+            //Get release year
+            System.out.print("Album Release year: ");
+            String input = scan.nextLine();
+            try {
+                release_year = Integer.parseInt(input.strip());
+                if (release_year < 0 || release_year > Year.now().getValue()) {
+                    System.out.println("Invalid Release Year. Please try again.");
+                    continue;
+                }
+            } catch (NumberFormatException e) {
+                System.out.println("Invalid Release Year. Please try again.");
+                continue;
+            }
+            break;
+        } while (true);
+
+        return deleteSongRepo(title, album_name, release_year);
     }
 
     public boolean deleteSongRepo(String title, String album_name, int release_year) {
