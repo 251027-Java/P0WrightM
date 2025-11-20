@@ -67,10 +67,44 @@ public class MusicAppTest {
 
     @Test
     void testDeleteArtistSuccess() {
+
+        Artist testArtist = new Artist("TestArtist");
+
+        when(repo.getArtist("TestArtist")).thenReturn(testArtist);
+        when(repo.deleteArtist("TestArtist")).thenReturn(true);
+
+        boolean didInsert = musicApp.deleteArtistRepo("TestArtist");
+
+        assertTrue(didInsert);
+
+        verify(repo, times(1)).deleteArtist("TestArtist");
     }
 
     @Test
     void testDeleteArtistFail() {
+
+        when(repo.getArtist("TestArtist")).thenReturn(null);
+
+        boolean didInsert = musicApp.deleteArtistRepo("TestArtist");
+
+        assertFalse(didInsert);
+
+        verify(repo, never()).deleteArtist(any());
+    }
+
+    @Test
+    void testDeleteArtistRepoFailure() {
+
+        Artist testArtist = new Artist("TestArtist");
+        when(repo.getArtist("TestArtist")).thenReturn(testArtist);
+
+        when(repo.deleteArtist(any())).thenReturn(false);
+
+        boolean didInsert = musicApp.deleteArtistRepo("TestArtist");
+
+        assertFalse(didInsert);
+
+        verify(repo, times(1)).deleteArtist("TestArtist");
     }
 
     @Test
