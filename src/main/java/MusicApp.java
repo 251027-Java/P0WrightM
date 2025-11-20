@@ -26,12 +26,10 @@ public class MusicApp {
     }
 
     public void start() {
-        // Do stuff
         log.info("Beginning MusicApp Service");
         System.out.println("Welcome to Music App!\n");
         System.out.println("Please select one of the options from the menu below to begin\n");
 
-        //boolean hasNotQuit = true;
         String input;
         List<Song> returnedSongs = List.of();
         do {
@@ -253,8 +251,9 @@ public class MusicApp {
 
     public Album insertAlbumRepo(String[] artist_names, String album_name, int release_year) {
 
-        if (repo.getAlbum(album_name, release_year) != null) {
-            return null;
+        Album checkAlbum = repo.getAlbum(album_name, release_year);
+        if (checkAlbum != null) {
+            return checkAlbum;
         }
 
         log.info("Attempting to insert Album into IRepository");
@@ -375,8 +374,9 @@ public class MusicApp {
 
     public Song insertSongRepo(String[] artist_names, Album album, String song_title, double secs, String lyrics) {
 
-        if (repo.getSong(song_title, album.getTitle(), album.getReleaseYear()) != null) {
-            return null;
+        Song checkSong = repo.getSong(song_title, album.getTitle(), album.getReleaseYear());
+        if (checkSong != null) {
+            return checkSong;
         }
 
         log.info("Attempting to insert Song into IRepository");
