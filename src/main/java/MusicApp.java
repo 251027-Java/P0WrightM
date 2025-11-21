@@ -114,7 +114,7 @@ public class MusicApp {
         //displaySongs
         System.out.println();
         for (int i = 0; i < songs.size(); i++) {
-            System.out.print(String.format("\t%d: ", i));
+            System.out.print(String.format("\t%d: ", i+1));
             System.out.println(songs.get(i));
         }
         System.out.println();
@@ -356,7 +356,7 @@ public class MusicApp {
             StringBuilder builder = new StringBuilder();
             while (scan.hasNextLine()) {
                 String line = scan.nextLine();
-                if (line.equals("DONE")) {
+                if (line.strip().equals("DONE")) {
                     break;
                 }
                 builder.append(line).append(" ");

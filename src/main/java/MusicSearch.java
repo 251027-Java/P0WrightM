@@ -36,8 +36,29 @@ public class MusicSearch {
         return input.strip();
     }
 
+    private String getUserLyrics(String searchText) {
+        String lyrics = "";
+        do {
+            //Get Song Lyrics
+            System.out.print("\n" + searchText);
+            StringBuilder builder = new StringBuilder();
+            while (scan.hasNextLine()) {
+                String line = scan.nextLine();
+                if (line.strip().equals("DONE")) {
+                    break;
+                }
+                builder.append(line).append(" ");
+            }
+            lyrics = builder.toString();
+            if (lyrics.isBlank()) {
+                System.out.println("Invalid Lyrics. Please try again");
+            } else { break; }
+        } while (true);
+        return lyrics;
+    }
+
     public List<Song> searchByLyrics() {
-        String userInput = getUserText("Search By Lyrics: ");
+        String userInput = getUserLyrics("Search By Song Lyrics (Followed by 'DONE' on a new line): ");
         log.info("Searching by Lyrics");
 
         float[] embedding = this.embedder.getEmbedding(userInput);

@@ -43,7 +43,7 @@ public class Doc2VecEmbedder implements IEmbedder {
         }
 
         this.embedder.setTokenizerFactory(t);
-        this.embedder.getConfiguration().setIterations(1); // set to 1 to speedup inference
+        this.embedder.getConfiguration().setIterations(10); // set to 1 to speedup inference
 
         log.info("Initialized Doc2Vec Embedder");
     }
